@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>我的网站</title>
+  <meta name="description" content="欢迎来到我的个人网站" />
+  <style>
+    :root { --ink:#172033; --muted:#64748b; --brand:#2563eb; --soft:#eff6ff; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,"Microsoft YaHei",sans-serif; color:var(--ink); background:#f8fafc; }
+    nav { max-width:1100px; margin:auto; padding:22px 24px; display:flex; justify-content:space-between; align-items:center; }
+    .logo { font-weight:800; font-size:21px; color:var(--brand); }
+    nav a { color:var(--muted); text-decoration:none; margin-left:22px; }
+    .hero { max-width:1100px; margin:45px auto 0; padding:70px 24px 100px; display:grid; grid-template-columns:1.1fr .9fr; gap:55px; align-items:center; }
+    h1 { font-size:clamp(42px,7vw,76px); line-height:1.08; margin:0 0 22px; letter-spacing:-2px; }
+    h1 span { color:var(--brand); }
+    p { color:var(--muted); font-size:18px; line-height:1.8; }
+    .buttons { margin-top:30px; display:flex; gap:14px; flex-wrap:wrap; }
+    .btn { padding:13px 22px; border-radius:12px; text-decoration:none; font-weight:700; }
+    .primary { background:var(--brand); color:white; }
+    .secondary { background:white; color:var(--brand); border:1px solid #dbeafe; }
+    .card { background:linear-gradient(145deg,#dbeafe,#fff); border-radius:28px; padding:35px; min-height:300px; box-shadow:0 20px 50px #dbeafe80; display:flex; align-items:center; justify-content:center; }
+    .orb { width:190px; height:190px; border-radius:50%; background:radial-gradient(circle at 35% 30%,#93c5fd,#2563eb 60%,#1e3a8a); box-shadow:0 0 0 25px #ffffff80,0 20px 40px #1d4ed880; }
+    .features { max-width:1100px; margin:auto; padding:0 24px 80px; display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+    .feature { background:white; padding:25px; border-radius:18px; border:1px solid #e2e8f0; }
+    .feature h3 { margin-top:0; }
+    .feature p { font-size:15px; }
+    footer { text-align:center; padding:28px; color:var(--muted); border-top:1px solid #e2e8f0; }
+    @media (max-width:700px) { .hero { grid-template-columns:1fr; padding-top:30px; } .features { grid-template-columns:1fr; } nav a { display:none; } }
+  </style>
+</head>
+<body>
+  <nav><div class="logo">我的网站</div><div><a href="#about">关于我</a><a href="#contact">联系我</a></div></nav>
+  <main>
+    <section class="hero" id="about">
+      <div><p style="color:#2563eb;font-weight:700">WELCOME</p><h1>你好，<br><span>这是我的网站</span></h1><p>这里可以介绍你自己、你的作品、业务或项目。文字、颜色和内容都可以继续修改。</p><div class="buttons"><a class="btn primary" href="#contact">联系我</a><a class="btn secondary" href="#services">了解更多</a></div></div>
+      <div class="card"><div class="orb"></div></div>
+    </section>
+    <section class="features" id="services"><div class="feature"><h3>我的项目</h3><p>展示你的项目、作品或服务内容。</p></div><div class="feature"><h3>专业能力</h3><p>介绍你的技能、经验和优势。</p></div><div class="feature" id="contact"><h3>联系方式</h3><p>邮箱：your@email.com</p></div></section>
+  </main>
+  <footer>© 2026 我的网站 · 保留所有权利</footer>
+</body>
+</html>
