@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import json
+import socket
 import ssl
 import urllib.error
 import urllib.parse
@@ -61,10 +62,27 @@ class MuseProvider(VideoProvider):
         self.api_key = api_key or CFG.muse_key
 
     # ------------------------------------------------------------ HTTP
-    def _ctx(self):
-        if CFG.muse_verify_ssl:
-            return None
-        return ssl._create_unverified_context()  # noqa: SLF001
+    def _opener(self):
+        """默认直连上游，不吃系统 HTTP_PROXY。
+
+        号池多是 127.0.0.1 / 内网地址，一旦本机挂着 Clash 之类的代理，
+        请求会被代理接管并返回 502 upstream connect failed（os error 10061），
+        看上去像「号池挂了」，实际是代理拦了内网地址。
+        真要让号池走代理时，.env 里设 MUSE_USE_PROXY=1。
+        """
+        handlers = []
+        if not CFG.muse_use_proxy:
+            handlers.append(urllib.request.ProxyHandler({}))
+        if not CFG.muse_verify_ssl:
+            handlers.append(urllib.request.HTTPSHandler(
+                context=ssl._create_unverified_context()))  # noqa: SLF001
+        return urllib.request.build_opener(*handlers)
+
+    @staticmethod
+    def _looks_like_proxy_failure(text: str) -> bool:
+        low = (text or "").lower()
+        return any(k in low for k in ("upstream connect failed", "10061",
+                                      "connection refused", "econnrefused"))
 
     def _call(self, method: str, path: str, payload: dict | None = None,
               timeout: float = 180.0, raw_stream: bool = False):
@@ -78,16 +96,37 @@ class MuseProvider(VideoProvider):
             headers["Content-Type"] = "application/json"
         req = urllib.request.Request(url, data=data, headers=headers, method=method)
         try:
-            resp = urllib.request.urlopen(req, timeout=timeout, context=self._ctx())
+            resp = self._opener().open(req, timeout=timeout)
         except urllib.error.HTTPError as exc:
-            body = exc.read()[:400].decode("utf-8", "ignore")
+            body = exc.read()[:400].decode("utf-8", "ignore").strip()
             retryable = exc.code in (408, 425, 429, 500, 502, 503, 504)
-            raise ProviderError("HTTP_%s" % exc.code,
-                                "上游 %s：%s" % (exc.code, body.strip() or exc.reason),
+            detail = "号池 %s 返回 %s：%s" % (self.base_url, exc.code,
+                                             body or exc.reason)
+            if exc.code in (502, 503, 504) and self._looks_like_proxy_failure(body):
+                detail += ("｜该错误像是本机代理接管了内网请求："
+                           "确认号池地址可直连，或设置 MUSE_USE_PROXY=1")
+            raise ProviderError("HTTP_%s" % exc.code, detail,
                                 retryable=retryable) from exc
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        except urllib.error.URLError as exc:
+            reason = getattr(exc, "reason", exc)
+            if isinstance(reason, (ConnectionRefusedError,)) or \
+                    self._looks_like_proxy_failure(str(reason)):
+                detail = ("号池 %s 拒绝连接：该地址没有服务在监听。"
+                          "请确认号池已启动，且 MUSE_BASE 指向正确端口。"
+                          % self.base_url)
+            elif isinstance(reason, (socket.timeout, TimeoutError)):
+                detail = "号池 %s 响应超时（%ss），检查网络或号池负载" % (
+                    self.base_url, int(timeout))
+            elif "certificate" in str(reason).lower():
+                detail = ("号池 %s 的 HTTPS 证书校验失败；"
+                          "自签证书可设 MUSE_VERIFY_SSL=0" % self.base_url)
+            else:
+                detail = "连不上号池 %s：%s" % (self.base_url, reason)
+            raise ProviderError("UPSTREAM_UNREACHABLE", detail, retryable=True) from exc
+        except (TimeoutError, OSError) as exc:
             raise ProviderError("UPSTREAM_UNREACHABLE",
-                                "连不上号池网关：%s" % exc, retryable=True) from exc
+                                "连不上号池 %s：%s" % (self.base_url, exc),
+                                retryable=True) from exc
         if raw_stream:
             return resp
         try:
@@ -204,7 +243,7 @@ class MuseProvider(VideoProvider):
             headers["Authorization"] = "Bearer " + self.api_key
         req = urllib.request.Request(url, headers=headers)
         try:
-            resp = urllib.request.urlopen(req, timeout=timeout, context=self._ctx())
+            resp = self._opener().open(req, timeout=timeout)
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             raise ProviderError("DOWNLOAD_FAILED", "下载成品失败：%s" % exc,
                                 retryable=True) from exc

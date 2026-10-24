@@ -110,6 +110,9 @@ class Settings:
     muse_timeout: int = field(default_factory=lambda: _int("MUSE_TIMEOUT", 600))
     muse_poll_interval: float = field(default_factory=lambda: float(_env("MUSE_POLL_INTERVAL", "4") or 4))
     muse_verify_ssl: bool = field(default_factory=lambda: _bool("MUSE_VERIFY_SSL", True))
+    # 号池一般是 127.0.0.1 / 内网地址，默认直连、不吃系统 HTTP_PROXY
+    #（本机挂 Clash 之类会把内网请求也接管，报 502 / os error 10061）
+    muse_use_proxy: bool = field(default_factory=lambda: _bool("MUSE_USE_PROXY", False))
 
     # ---------- 计费 ----------
     # 视频 = 2 积分/秒（5 秒 10、10 秒 20）；图片 = 5 积分/张
