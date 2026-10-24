@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Muse Studio · 把一句话变成能发的片子</title>
+<meta name="description" content="面向短视频与电商的 AI 视频生成工作台：文生视频、图生视频、扫码充值、按条计费。">
+<link rel="icon" href="/assets/favicon.svg">
+<link rel="stylesheet" href="/assets/css/app.css">
+<style>
+body { background: #fff; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+.nav { position: sticky; top: 0; z-index: 50; background: rgba(255,255,255,.86);
+  backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+.nav-in { height: 64px; display: flex; align-items: center; gap: 26px; }
+.nav-links { display: flex; gap: 22px; margin-left: 12px; }
+.nav-links a { font-size: 13.5px; color: var(--ink-3); font-weight: 500; }
+.nav-links a:hover { color: var(--ink); }
+@media (max-width: 860px) { .nav-links { display: none; } }
+
+.hero { padding: 78px 0 60px; position: relative; overflow: hidden; }
+.hero::before { content: ''; position: absolute; right: -160px; top: -240px; width: 720px; height: 720px;
+  background: radial-gradient(circle, rgba(255,90,31,.13), transparent 62%); pointer-events: none; }
+.hero-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 54px; align-items: center; position: relative; }
+@media (max-width: 980px) { .hero-grid { grid-template-columns: 1fr; gap: 36px; } }
+.eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 6px 13px; border-radius: 20px;
+  background: var(--brand-soft); color: var(--brand-ink); font-size: 12.5px; font-weight: 600;
+  border: 1px solid var(--brand-line); }
+.hero h1 { font-size: 54px; line-height: 1.14; letter-spacing: -.03em; margin: 20px 0 18px; font-weight: 740; }
+.hero h1 em { font-style: normal; color: var(--brand); }
+.hero p.lead { font-size: 16px; color: var(--ink-3); line-height: 1.8; max-width: 480px; }
+.hero-cta { display: flex; gap: 12px; margin-top: 30px; flex-wrap: wrap; }
+.hero-meta { display: flex; gap: 30px; margin-top: 38px; }
+.hero-meta div b { display: block; font-family: var(--mono); font-size: 22px; letter-spacing: -.02em; }
+.hero-meta div span { font-size: 12px; color: var(--muted); }
+
+.showcase { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.vcard { position: relative; border-radius: 16px; overflow: hidden; background: #101319;
+  box-shadow: var(--sh-3); aspect-ratio: 9/13; }
+.vcard:nth-child(2) { margin-top: 34px; }
+.vcard video, .vcard .ph { width: 100%; height: 100%; object-fit: cover; }
+.vcard .ph { display: grid; place-items: center; color: rgba(255,255,255,.35); font-size: 12px;
+  background: linear-gradient(160deg, #1B1F27, #2A1E16); text-align: center; padding: 20px; }
+.vcard .lbl { position: absolute; left: 10px; bottom: 10px; right: 10px; color: #fff; font-size: 11.5px;
+  padding: 6px 10px; border-radius: 8px; background: rgba(0,0,0,.45); backdrop-filter: blur(6px);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.section { padding: 74px 0; }
+.section.alt { background: var(--bg); }
+.sec-head { text-align: center; max-width: 640px; margin: 0 auto 44px; }
+.sec-head h2 { font-size: 34px; letter-spacing: -.025em; margin: 0 0 12px; font-weight: 700; }
+.sec-head p { color: var(--ink-3); font-size: 15px; margin: 0; line-height: 1.75; }
+
+.feats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; }
+.feat { background: #fff; border: 1px solid var(--line); border-radius: var(--r-lg); padding: 24px; }
+.feat .ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+  background: var(--brand-soft); color: var(--brand); margin-bottom: 14px; }
+.feat .ic svg { width: 20px; height: 20px; }
+.feat h3 { font-size: 15.5px; margin: 0 0 7px; }
+.feat p { margin: 0; font-size: 13.5px; color: var(--ink-3); line-height: 1.75; }
+
+.price-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; }
+.price { background: #fff; border: 1.5px solid var(--line); border-radius: var(--r-lg); padding: 24px 20px;
+  position: relative; transition: all .18s; }
+.price:hover { border-color: var(--brand-line); box-shadow: var(--sh-2); transform: translateY(-2px); }
+.price.hot { border-color: var(--brand); box-shadow: var(--sh-brand); }
+.price .pn { font-size: 13px; color: var(--ink-3); font-weight: 550; }
+.price .pp { font-family: var(--mono); font-size: 30px; font-weight: 700; letter-spacing: -.03em; margin: 8px 0 2px; }
+.price .pp small { font-family: var(--font); font-size: 12px; color: var(--muted); font-weight: 500; }
+.price .pd { font-size: 13px; color: var(--ink-3); margin-top: 4px; }
+.price .py { margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--line);
+  font-family: var(--mono); font-size: 18px; font-weight: 700; }
+.price .py small { font-family: var(--font); font-size: 11.5px; color: var(--muted); font-weight: 500; }
+.price .rtag { position: absolute; top: 0; right: 18px; transform: translateY(-50%);
+  background: var(--brand); color: #fff; font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 20px; }
+
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 20px; }
+.step { position: relative; padding-top: 8px; }
+.step .n { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--brand);
+  width: 26px; height: 26px; border-radius: 8px; background: var(--brand-soft); display: grid;
+  place-items: center; margin-bottom: 12px; }
+.step h3 { font-size: 15px; margin: 0 0 6px; }
+.step p { font-size: 13.5px; color: var(--ink-3); margin: 0; line-height: 1.75; }
+
+.cta { background: linear-gradient(140deg, #14171D, #262A33 55%, #33211A); border-radius: 24px;
+  padding: 52px 44px; color: #fff; display: flex; align-items: center; justify-content: space-between;
+  gap: 30px; flex-wrap: wrap; position: relative; overflow: hidden; }
+.cta::after { content: ''; position: absolute; right: -80px; top: -100px; width: 420px; height: 420px;
+  background: radial-gradient(circle, rgba(255,90,31,.45), transparent 62%); }
+.cta h2 { font-size: 30px; letter-spacing: -.025em; margin: 0 0 10px; position: relative; }
+.cta p { margin: 0; color: rgba(255,255,255,.62); font-size: 14px; position: relative; }
+
+.foot { padding: 40px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; }
+.foot .in { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="row" href="/" style="gap:10px;font-weight:700">
+      <div class="brand-mark">M</div><span>Muse Studio</span>
+    </a>
+    <nav class="nav-links">
+      <a href="#features">能力</a>
+      <a href="#how">怎么用</a>
+      <a href="#pricing">价格</a>
+      <a href="/download">客户端</a>
+    </nav>
+    <div style="flex:1"></div>
+    <a class="btn btn-sm" href="/login" id="navLogin">登录</a>
+    <a class="btn btn-sm btn-primary" href="/register" id="navGo">免费开始</a>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow">✦ AI 视频生成 · 按条计费</div>
+      <h1>把一句话，<br>变成<em>能发的片子</em>。</h1>
+      <p class="lead">
+        写一段画面描述，或上传一张首帧图，几十秒后拿到一条可直接发布的竖屏视频。
+        不用订阅、不用装环境，扫码充值，积分永不过期。
+      </p>
+      <div class="hero-cta">
+        <a class="btn btn-primary btn-lg" href="/register">免费试用</a>
+        <a class="btn btn-lg" href="#pricing">看价格</a>
+      </div>
+      <div class="hero-meta">
+        <div><b>9:16 / 16:9</b><span>竖屏横屏</span></div>
+        <div><b>~90s</b><span>平均出片</span></div>
+        <div><b>10 积分</b><span>5 秒视频</span></div>
+        <div><b>5 积分</b><span>一张图</span></div>
+      </div>
+    </div>
+    <div class="showcase">
+      <div class="vcard">
+        <div class="ph">竖屏 · 9:16<br>商品展示样例</div>
+        <div class="lbl">镜头环绕咖啡杯，暖光，木质桌面</div>
+      </div>
+      <div class="vcard">
+        <div class="ph">竖屏 · 9:16<br>人物口播样例</div>
+        <div class="lbl">中景固定机位，自然讲话，柔光</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="features">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>为「要发出去」而做的工具</h2>
+      <p>不是炫技的 demo，是每天要出量的人真正用得上的流水线。</p>
+    </div>
+    <div class="feats">
+      <div class="feat">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v18M3 12h18"/></svg></div>
+        <h3>文生 / 图生都能做</h3>
+        <p>纯文字描述即可出片；也可以上传首帧参考图，让人物、构图、产品延续你的素材。</p>
+      </div>
+      <div class="feat">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></div>
+        <h3>排队与进度都看得见</h3>
+        <p>任务状态实时刷新，前面还有几个、渲染到几成，一眼就知道，不用反复问客服。</p>
+      </div>
+      <div class="feat">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2 19 6v5.4c0 4.3-2.9 7.6-7 9.4-4.1-1.8-7-5.1-7-9.4V6z"/><path d="m9.2 12 2 2 3.6-3.8"/></svg></div>
+        <h3>失败自动退积分</h3>
+        <p>提交先冻结、成功才扣费。渲染失败或超时，积分原路退回，账目每一笔都能查。</p>
+      </div>
+      <div class="feat">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18"/></svg></div>
+        <h3>支付宝扫码充值</h3>
+        <p>不需要绑卡、不用月付。选套餐 → 扫码 → 秒到账，积分长期有效。</p>
+      </div>
+      <div class="feat">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="m4.5 17 4.2-4.2a2 2 0 0 1 2.8 0L16 17.5"/></svg></div>
+        <h3>成品自动归档</h3>
+        <p>生成过的片子按时间归档，随时回看、下载、删掉不满意的，不占你本地空间。</p>
+      </div>
+      <div class="feat">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5h11l3 3v12H5z"/><path d="M8.5 9h7M8.5 13h7M8.5 17h4"/></svg></div>
+        <h3>顺手给出发布文案</h3>
+        <p>成片会附带一段可直接用的标题、正文与话题标签，省掉二次创作的时间。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="how">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>三步出片</h2>
+      <p>从注册到拿到第一条视频，通常不超过三分钟。</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="n">1</div>
+        <h3>写描述，选参数</h3>
+        <p>一句话说清主体、动作、镜头和光线。竖屏横屏、时长、清晰度自己定，价格实时显示。</p>
+      </div>
+      <div class="step">
+        <div class="n">2</div>
+        <h3>点生成，等出片</h3>
+        <p>任务进入队列，页面显示排队位置与渲染进度。整个过程你可以去做别的事。</p>
+      </div>
+      <div class="step">
+        <div class="n">3</div>
+        <h3>下载，直接发</h3>
+        <p>成片在线预览，一键下载 MP4。附带的文案可以复制到抖音、快手、视频号直接用。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="pricing">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>1 元 = 10 积分，按条计费</h2>
+      <p>图片 5 积分／张，5 秒视频 10 积分，10 秒视频 20 积分。积分长期有效，生成失败不计费。</p>
+    </div>
+    <div class="price-grid" id="prices">
+      <div class="skel" style="height:190px"></div>
+      <div class="skel" style="height:190px"></div>
+      <div class="skel" style="height:190px"></div>
+      <div class="skel" style="height:190px"></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="cta">
+      <div>
+        <h2>先免费试两条，再说要不要充值</h2>
+        <p>注册即送体验积分，出片满意再充值。不满意随时停。</p>
+      </div>
+      <div class="row" style="gap:10px">
+        <a class="btn btn-lg" href="/login" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.22);color:#fff">已有账号</a>
+        <a class="btn btn-lg btn-primary" href="/register">免费注册</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="wrap in">
+    <div>© 2026 Muse Studio · AI 生成内容请遵守各平台规范</div>
+    <div class="row" style="gap:18px">
+      <a href="/download">桌面客户端</a>
+      <a href="/login">登录</a>
+      <a href="/register">注册</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/assets/js/core.js"></script>
+<script>
+(async function () {
+  try {
+    const r = await get('/api/auth/me');
+    if (r && r.user) {
+      $('#navLogin').textContent = '进入工作台';
+      $('#navLogin').href = '/studio';
+      $('#navGo').textContent = r.user.username || '工作台';
+      $('#navGo').href = '/studio';
+    }
+  } catch (e) { /* 未登录，保持默认 */ }
+
+  try {
+    const r = await fetch('/api/wallet/packages').then((x) => (x.ok ? x.json() : null));
+    if (r && r.items && r.items.length) {
+      $('#prices').innerHTML = r.items.map((p, i) => `
+        <div class="price ${p.tag ? 'hot' : ''}">
+          ${p.tag ? `<div class="rtag">${p.tag}</div>` : ''}
+          <div class="pn">${p.name}</div>
+          <div class="pp">${p.total_points}<small> 积分</small></div>
+          <div class="pd">≈ ${Math.floor(p.total_points / 10)} 条 10 秒视频${p.bonus ? ` · 含赠送 ${p.bonus}` : ''}</div>
+          <div class="py">${p.price_yuan}<small> 元</small></div>
+        </div>`).join('');
+    } else throw new Error('no packages');
+  } catch (e) {
+    $('#prices').innerHTML = `
+      <div class="price"><div class="pn">体验包</div><div class="pp">100<small> 积分</small></div>
+        <div class="pd">= 10 条 5 秒视频 / 20 张图</div><div class="py">10.00<small> 元</small></div></div>
+      <div class="price hot"><div class="rtag">最受欢迎</div><div class="pn">基础包</div>
+        <div class="pp">550<small> 积分</small></div><div class="pd">含赠送 50 · ≈ 27 条 10 秒视频</div>
+        <div class="py">50.00<small> 元</small></div></div>
+      <div class="price"><div class="pn">专业包</div><div class="pp">1400<small> 积分</small></div>
+        <div class="pd">含赠送 200 · ≈ 70 条 10 秒视频</div><div class="py">120.00<small> 元</small></div></div>
+      <div class="price"><div class="pn">工作室包</div><div class="pp">3800<small> 积分</small></div>
+        <div class="pd">含赠送 800 · ≈ 190 条 10 秒视频</div><div class="py">300.00<small> 元</small></div></div>`;
+  }
+})();
+</script>
+</body>
+</html>

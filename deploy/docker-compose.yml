@@ -1,0 +1,25 @@
+services:
+  studio:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: muse-studio:latest
+    container_name: muse-studio
+    restart: always
+    env_file:
+      - ../.env
+    environment:
+      DATA_DIR: /app/data
+      FRONTEND_DIR: /app/frontend
+      RELEASE_DIR: /app/releases
+      BIND_PORT: "8080"
+    volumes:
+      - ../data:/app/data
+      - ../releases:/app/releases
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

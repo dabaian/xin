@@ -1,0 +1,10 @@
+{
+  "app_title": "Muse Studio",
+  "url": "https://your-domain.com/studio",
+  "window": {
+    "width": 1280,
+    "height": 860,
+    "min_width": 1000,
+    "min_height": 680
+  }
+}

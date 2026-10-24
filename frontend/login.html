@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>登录 · Muse Studio</title>
+<link rel="icon" href="/assets/favicon.svg">
+<link rel="stylesheet" href="/assets/css/app.css">
+<style>
+.split { display: grid; grid-template-columns: 1.05fr 1fr; min-height: 100vh; }
+.side {
+  position: relative; overflow: hidden; padding: 44px; color: #fff;
+  background: linear-gradient(150deg, #14171D 0%, #1C2029 45%, #2A1C13 100%);
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.side::before {
+  content: ''; position: absolute; inset: -40% -20% auto auto; width: 620px; height: 620px;
+  background: radial-gradient(circle, rgba(255,90,31,.42), transparent 62%);
+}
+.side::after {
+  content: ''; position: absolute; left: -120px; bottom: -180px; width: 480px; height: 480px;
+  background: radial-gradient(circle, rgba(37,99,235,.28), transparent 64%);
+}
+.side > * { position: relative; z-index: 1; }
+.side .logo { display: flex; align-items: center; gap: 11px; font-weight: 700; font-size: 16px; }
+.side .logo .m { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+  background: linear-gradient(135deg,#FF7A45,#FF5A1F); font-weight: 800; }
+.side h1 { font-size: 40px; line-height: 1.22; letter-spacing: -.025em; margin: 0 0 14px; font-weight: 700; }
+.side h1 em { font-style: normal; color: #FF8A5B; }
+.side p { color: rgba(255,255,255,.62); font-size: 14px; max-width: 380px; line-height: 1.75; }
+.side .pts { display: grid; gap: 12px; margin-top: 26px; }
+.side .pts div { display: flex; gap: 10px; font-size: 13.5px; color: rgba(255,255,255,.78); }
+.side .pts i { width: 18px; height: 18px; border-radius: 50%; background: rgba(255,90,31,.22);
+  color: #FF8A5B; display: grid; place-items: center; font-size: 10px; font-style: normal;
+  font-weight: 800; flex: 0 0 18px; margin-top: 2px; }
+.side .foot { color: rgba(255,255,255,.35); font-size: 12px; }
+
+.form-side { display: grid; place-items: center; padding: 40px 24px; background: #fff; }
+.form-box { width: 100%; max-width: 372px; }
+@media (max-width: 900px) { .split { grid-template-columns: 1fr; } .side { display: none; } }
+</style>
+</head>
+<body>
+<div class="split">
+  <div class="side">
+    <div class="logo"><div class="m">M</div>Muse Studio</div>
+    <div>
+      <h1>把一句话，<br>变成<em>能发的片子</em>。</h1>
+      <p>面向短视频与电商内容的 AI 视频工作台。文本或图片进，10 秒成片出，按条计费，不用订阅。</p>
+      <div class="pts">
+        <div><i>✓</i><span>文生视频 / 图生视频，竖屏横屏一键切换</span></div>
+        <div><i>✓</i><span>排队可见、失败自动退积分，不玩黑箱</span></div>
+        <div><i>✓</i><span>扫码充值即时到账，积分永不过期</span></div>
+      </div>
+    </div>
+    <div class="foot">© 2026 Muse Studio · 内容由 AI 生成，请遵守平台规范</div>
+  </div>
+
+  <div class="form-side">
+    <div class="form-box" id="box">
+      <h2 class="h2" style="margin-bottom:6px">登录</h2>
+      <p class="sub mb24">用邮箱账号继续</p>
+      <form id="form">
+        <div class="field">
+          <label class="label">邮箱</label>
+          <input class="input" id="account" type="text" autocomplete="username"
+                 placeholder="you@example.com" required>
+        </div>
+        <div class="field">
+          <label class="label">密码</label>
+          <input class="input" id="password" type="password" autocomplete="current-password"
+                 placeholder="••••••••" required>
+        </div>
+        <div class="between mb16">
+          <label class="row" style="gap:6px;font-size:13px;color:var(--ink-3);cursor:pointer">
+            <input type="checkbox" id="remember" checked> 保持登录
+          </label>
+          <span></span>
+        </div>
+        <button class="btn btn-primary btn-lg btn-block" id="submit" type="submit">登录</button>
+      </form>
+      <p class="sub center mt24">还没有账号？<a href="/register" style="color:var(--brand);font-weight:600">免费注册</a></p>
+    </div>
+  </div>
+</div>
+<script src="/assets/js/core.js"></script>
+<script>
+(function () {
+  const next = new URLSearchParams(location.search).get('next') || '/studio';
+  const box = $('#box');
+
+  // 已登录直接跳走
+  get('/api/auth/me').then(() => { location.href = next; }).catch(() => {});
+
+  $('#form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = $('#submit');
+    btn.disabled = true; btn.textContent = '登录中…';
+    try {
+      await post('/api/auth/login', {
+        account: $('#account').value.trim(),
+        password: $('#password').value,
+        remember: $('#remember').checked,
+      });
+      toast('欢迎回来', 'ok');
+      setTimeout(() => { location.href = next; }, 320);
+    } catch (err) {
+      btn.disabled = false; btn.textContent = '登录';
+      toast(err.message || '登录失败', 'bad');
+      $('#password').select();
+    }
+  });
+
+  const acc = new URLSearchParams(location.search).get('account');
+  if (acc) { $('#account').value = acc; $('#password').focus(); } else $('#account').focus();
+})();
+</script>
+</body>
+</html>

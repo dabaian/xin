@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>钱包充值 · Muse Studio</title>
+<link rel="icon" href="/assets/favicon.svg">
+<link rel="stylesheet" href="/assets/css/app.css">
+<style>
+.wallets { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; align-items: start; }
+@media (max-width: 1000px) { .wallets { grid-template-columns: 1fr; } }
+
+.balance-card {
+  position: relative; overflow: hidden; border-radius: var(--r-lg); padding: 26px 28px;
+  background: linear-gradient(135deg, #171A21, #232833 55%, #2E2118);
+  color: #fff; box-shadow: var(--sh-3);
+}
+.balance-card::after {
+  content: ''; position: absolute; width: 260px; height: 260px; right: -70px; top: -90px;
+  background: radial-gradient(circle, rgba(255,90,31,.55), transparent 62%); filter: blur(6px);
+}
+.balance-card .b-num { font-family: var(--mono); font-size: 46px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; }
+.balance-card .b-sub { color: rgba(255,255,255,.62); font-size: 12.5px; }
+.b-stats { display: flex; gap: 28px; margin-top: 22px; position: relative; z-index: 1; }
+.b-stats div span { display: block; font-size: 11.5px; color: rgba(255,255,255,.55); margin-bottom: 2px; }
+.b-stats div b { font-family: var(--mono); font-size: 17px; }
+
+.pkg-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 560px) { .pkg-grid { grid-template-columns: 1fr; } }
+.pkg {
+  position: relative; border: 1.5px solid var(--line); border-radius: var(--r); padding: 18px 16px;
+  background: #fff; cursor: pointer; transition: all .16s; text-align: left;
+}
+.pkg:hover { border-color: var(--brand-line); box-shadow: var(--sh-2); transform: translateY(-2px); }
+.pkg .p-name { font-size: 13px; color: var(--ink-3); font-weight: 550; }
+.pkg .p-pts { font-family: var(--mono); font-size: 27px; font-weight: 700; letter-spacing: -.02em; margin: 6px 0 0; }
+.pkg .p-pts small { font-family: var(--font); font-size: 12px; font-weight: 500; color: var(--muted); margin-left: 3px; }
+.pkg .p-bonus { font-size: 11.5px; color: var(--brand); font-weight: 600; height: 17px; }
+.pkg .p-price { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line);
+  font-family: var(--mono); font-size: 17px; font-weight: 700; }
+.pkg .p-price small { font-family: var(--font); font-size: 11.5px; color: var(--muted); font-weight: 500; }
+.pkg .ribbon { position: absolute; top: -1px; right: 12px; background: var(--brand); color: #fff;
+  font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 0 0 7px 7px; }
+
+/* 二维码 */
+.qr-wrap { text-align: center; padding: 6px 0 0; }
+.qr-box {
+  width: 226px; height: 226px; margin: 0 auto; padding: 12px; border-radius: 16px;
+  background: #fff; border: 1px solid var(--line); box-shadow: var(--sh-2); position: relative;
+}
+.qr-box img { width: 100%; height: 100%; display: block; border-radius: 8px; image-rendering: pixelated; }
+.qr-box.locked img { filter: blur(3px); opacity: .35; }
+.qr-lock { position: absolute; inset: 0; display: grid; place-items: center; font-size: 13px;
+  font-weight: 600; color: var(--ink-3); text-align: center; padding: 20px; }
+.pay-status { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px; font-size: 13.5px; }
+.pay-amt { font-family: var(--mono); font-size: 30px; font-weight: 700; letter-spacing: -.02em; }
+.pay-amt small { font-size: 15px; }
+.alipay-logo { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: #1677FF; font-weight: 600; }
+.alipay-logo i { width: 16px; height: 16px; border-radius: 4px; background: #1677FF; display: grid;
+  place-items: center; color: #fff; font-size: 10px; font-style: normal; font-weight: 800; }
+.steps { text-align: left; background: var(--bg-2); border-radius: 12px; padding: 14px 16px; margin-top: 18px; }
+.steps div { display: flex; gap: 9px; font-size: 12.5px; color: var(--ink-3); line-height: 1.9; }
+.steps b { color: var(--ink); }
+.dot-n { width: 17px; height: 17px; border-radius: 50%; background: var(--line); color: var(--ink-3);
+  font-size: 10.5px; display: grid; place-items: center; flex: 0 0 17px; margin-top: 4px; font-weight: 700; }
+.ok-burst { width: 74px; height: 74px; margin: 10px auto 14px; border-radius: 50%; background: var(--ok-soft);
+  color: var(--ok); display: grid; place-items: center; font-size: 34px; animation: pop .3s cubic-bezier(.2,.9,.3,1.4); }
+@keyframes pop { from { transform: scale(.6); opacity: 0 } }
+</style>
+</head>
+<body>
+<script src="/assets/js/core.js"></script>
+<script>
+(async function () {
+  const user = await requireUser();
+  if (!user) return;
+  const root = buildLayout('wallet', user, '钱包充值');
+
+  root.innerHTML = `
+  <div class="wallets">
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <div class="balance-card">
+        <div class="b-sub">可用积分</div>
+        <div class="b-num" id="bAvail">—</div>
+        <div class="b-stats">
+          <div><span>冻结中</span><b id="bFrozen">—</b></div>
+          <div><span>累计充值</span><b id="bRecharged">—</b></div>
+          <div><span>已生成</span><b id="bVideos">—</b></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="h3">选择充值套餐</div>
+            <div class="sub" style="font-size:12.5px">支付宝扫码，实时到账</div>
+          </div>
+          <span class="alipay-logo"><i>支</i>支付宝当面付</span>
+        </div>
+        <div class="card-pad">
+          <div class="pkg-grid" id="pkgs">
+            ${'<div class="skel" style="height:130px"></div>'.repeat(4)}
+          </div>
+          <div class="sub mt12" id="payHint" style="font-size:12px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <div class="card">
+        <div class="card-head"><div class="h3">积分流水</div>
+          <a class="btn btn-sm btn-ghost" href="/tasks">去看任务 →</a></div>
+        <div id="ledger" class="card-pad" style="padding-top:0"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="h3">充值记录</div></div>
+        <div id="orders" class="card-pad" style="padding-top:0"></div>
+      </div>
+    </div>
+  </div>`;
+
+  /* ---------------- 数据 ---------------- */
+  async function loadWallet() {
+    const r = await get('/api/wallet');
+    $('#bAvail').textContent = fmt.points(r.wallet.available);
+    $('#bFrozen').textContent = fmt.points(r.wallet.frozen);
+    $('#bRecharged').textContent = fmt.points(r.wallet.total_recharged);
+    $('#bVideos').textContent = r.stats.videos;
+    const v = $('#balanceVal'); if (v) v.textContent = fmt.points(r.wallet.available);
+    return r;
+  }
+
+  async function loadPackages() {
+    const r = await get('/api/wallet/packages');
+    const box = $('#pkgs');
+    if (!r.items.length) { box.innerHTML = '<div class="sub">暂未配置套餐</div>'; return; }
+    box.innerHTML = r.items.map((p) => `
+      <button class="pkg" data-id="${p.id}">
+        ${p.tag ? `<span class="ribbon">${p.tag}</span>` : ''}
+        <div class="p-name">${p.name}</div>
+        <div class="p-pts">${fmt.points(p.points)}<small>积分</small></div>
+        <div class="p-bonus">${p.bonus ? `含赠送 ${fmt.points(p.bonus)} 积分` : ''}</div>
+        <div class="p-price">${p.price_yuan}<small> 元</small></div>
+      </button>`).join('');
+    box.querySelectorAll('.pkg').forEach((b) => {
+      b.onclick = () => checkout(b.dataset.id);
+    });
+    if (r.alipay_ready === false && !r.mock) {
+      $('#payHint').innerHTML = '<span style="color:var(--warn)">⚠ 支付宝参数未配置，充值暂不可用，请联系客服</span>';
+    } else if (r.mock) {
+      $('#payHint').innerHTML = '<span style="color:var(--info)">当前为模拟支付模式（测试用），点开二维码后可点「模拟支付」直接到账</span>';
+    } else {
+      $('#payHint').textContent = '扫码后请勿关闭页面，到账会自动刷新余额';
+    }
+  }
+
+  async function loadLedger() {
+    const r = await get('/api/wallet/ledger?limit=12');
+    if (!r.items.length) { $('#ledger').innerHTML = '<div class="sub">还没有流水</div>'; return; }
+    $('#ledger').innerHTML = `<table class="table">${r.items.map((it) => `
+      <tr>
+        <td style="padding-left:0">
+          <div style="font-weight:550">${it.label}</div>
+          <div class="muted" style="font-size:11.5px">${fmt.time(it.created_at)}</div>
+        </td>
+        <td class="num" style="text-align:right;font-weight:600;color:${it.amount > 0 ? 'var(--ok)' : 'var(--ink)'}">
+          ${it.amount > 0 ? '+' : ''}${it.amount}
+        </td>
+      </tr>`).join('')}</table>`;
+  }
+
+  async function loadOrders() {
+    const r = await get('/api/payments/orders?limit=8');
+    if (!r.items.length) { $('#orders').innerHTML = '<div class="sub">还没有充值记录</div>'; return; }
+    const st = { PAID: ['已到账', 'tag-ok'], PENDING: ['待支付', 'tag-warn'], CREATED: ['待支付', 'tag-warn'],
+      EXPIRED: ['已过期', 'tag'], FAILED: ['失败', 'tag-bad'], REFUNDED: ['已退款', 'tag-warn'] };
+    $('#orders').innerHTML = `<table class="table">${r.items.map((o) => {
+      const s = st[o.status] || ['—', 'tag'];
+      return `<tr>
+        <td style="padding-left:0">
+          <div style="font-weight:550">${o.package_name || '充值'}</div>
+          <div class="muted mono" style="font-size:11px">${o.order_no.slice(-10)}</div>
+        </td>
+        <td class="num">${fmt.money(o.amount_minor)}</td>
+        <td style="text-align:right"><span class="tag ${s[1]}">${s[0]}</span></td>
+      </tr>`;
+    }).join('')}</table>`;
+  }
+
+  /* ---------------- 下单 + 扫码 ---------------- */
+  let watch = null;
+
+  async function checkout(packageId) {
+    busy(true);
+    try {
+      const r = await post('/api/payments/checkout', { package_id: packageId });
+      busy(false);
+      openPayModal({ ...r.order, mock: !!r.mock });
+    } catch (e) {
+      busy(false);
+      toast(e.message, 'bad');
+    }
+  }
+
+  function openPayModal(order) {
+    let left = Math.max(0, Math.round((new Date(order.expires_at.replace(' ', 'T')) - Date.now()) / 1000));
+    const m = modal({
+      title: '支付宝扫码充值',
+      body: `
+        <div class="qr-wrap">
+          <div class="pay-amt">¥${order.amount_yuan}</div>
+          <div class="sub" style="margin:2px 0 16px">
+            到账 <b style="color:var(--brand-ink)">${fmt.points(order.points)}</b> 积分 · ${order.package_name}
+          </div>
+          <div class="qr-box" id="qrBox">
+            ${order.qr_image ? `<img src="${order.qr_image}" alt="支付宝二维码">` : ''}
+          </div>
+          ${order.mock ? `<button class="btn btn-block mt12" id="mockPay">模拟支付（测试模式）</button>` : ''}
+          <div class="pay-status" id="payStatus">
+            <span class="spin" style="border-color:rgba(37,99,235,.2);border-top-color:#2563EB;width:14px;height:14px"></span>
+            <span>等待支付 · <b id="cd" class="mono">--:--</b></span>
+          </div>
+          <div class="steps">
+            <div><span class="dot-n">1</span><span>打开手机 <b>支付宝</b>，点「扫一扫」</span></div>
+            <div><span class="dot-n">2</span><span>对准上方二维码，确认金额后付款</span></div>
+            <div><span class="dot-n">3</span><span>付款成功后本页会<b>自动刷新到账</b>，无需手动操作</span></div>
+          </div>
+          <div class="muted mt12" style="font-size:11.5px">订单号 ${order.order_no}</div>
+        </div>`,
+      onClose: () => { if (watch) { watch.stop(); watch = null; } },
+    });
+
+    const cd = document.getElementById('cd');
+    const mockBtn = document.getElementById('mockPay');
+    if (mockBtn) {
+      mockBtn.onclick = async () => {
+        mockBtn.disabled = true;
+        try { await post('/api/payments/mock-pay/' + order.order_no); }
+        catch (e) { toast(e.message, 'bad'); mockBtn.disabled = false; }
+      };
+    }
+    const timer = setInterval(() => {
+      left--;
+      if (left <= 0) {
+        clearInterval(timer);
+        cd.textContent = '已过期';
+        const box = document.getElementById('qrBox');
+        if (box) { box.classList.add('locked'); }
+        return;
+      }
+      const mm = String(Math.floor(left / 60)).padStart(2, '0');
+      const ss = String(left % 60).padStart(2, '0');
+      if (cd) cd.textContent = `${mm}:${ss}`;
+    }, 1000);
+
+    watch = poller(async () => {
+      const r = await get('/api/payments/orders/' + order.order_no);
+      if (r.paid) {
+        watch.stop(); watch = null; clearInterval(timer);
+        const box = m.el.querySelector('.modal-body');
+        box.innerHTML = `
+          <div class="qr-wrap">
+            <div class="ok-burst">✓</div>
+            <div class="h3">充值成功</div>
+            <div class="sub" style="margin:6px 0 4px">已到账 <b style="color:var(--brand-ink)">${fmt.points(r.points)}</b> 积分</div>
+            <div class="sub">当前余额 <b class="mono">${fmt.points(r.wallet.available)}</b></div>
+            <button class="btn btn-primary btn-block mt24" id="goStudio">去生成视频</button>
+          </div>`;
+        setTimeout(() => {
+          m.close();
+          loadWallet(); loadOrders(); loadLedger();
+        }, 2200);
+        toast('充值到账 +' + r.points + ' 积分', 'ok');
+        loadWallet();
+      } else if (r.status === 'EXPIRED') {
+        watch.stop(); watch = null; clearInterval(timer);
+        $('#payStatus').innerHTML = '<span style="color:var(--warn)">二维码已过期，请关闭后重新下单</span>';
+      }
+    }, 2500);
+  }
+
+  await Promise.all([loadWallet(), loadPackages(), loadLedger(), loadOrders()]);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>管理后台 · Muse Studio</title>
+<link rel="icon" href="/assets/favicon.svg">
+<link rel="stylesheet" href="/assets/css/app.css">
+<style>
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 20px; overflow-x: auto; }
+.tabs button { border: none; background: transparent; padding: 11px 15px; font-size: 13.5px;
+  font-weight: 550; color: var(--ink-3); cursor: pointer; border-bottom: 2px solid transparent;
+  white-space: nowrap; }
+.tabs button.on { color: var(--ink); border-bottom-color: var(--brand); }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 12px; }
+.kpi { background: #fff; border: 1px solid var(--line); border-radius: var(--r); padding: 15px 16px; }
+.kpi .k { font-size: 11.5px; color: var(--muted); font-weight: 550; margin-bottom: 6px; }
+.kpi .v { font-family: var(--mono); font-size: 24px; font-weight: 700; letter-spacing: -.02em; line-height: 1.2; }
+.kpi .d { font-size: 11.5px; color: var(--ink-3); margin-top: 3px; }
+.kpi.hl { background: linear-gradient(140deg,#171A21,#262B36); color: #fff; border: none; }
+.kpi.hl .k, .kpi.hl .d { color: rgba(255,255,255,.55); }
+.chart { display: flex; align-items: flex-end; gap: 10px; height: 140px; padding: 10px 4px 0; }
+.chart .col { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; }
+.chart .bx { width: 100%; max-width: 46px; border-radius: 6px 6px 3px 3px;
+  background: linear-gradient(180deg, #FF8A5B, var(--brand)); min-height: 3px; transition: height .3s; }
+.chart .bx.zero { background: var(--line); }
+.chart .lb { font-size: 10.5px; color: var(--muted); }
+.chart .vv { font-size: 10.5px; font-family: var(--mono); color: var(--ink-2); }
+.health { display: flex; gap: 10px; flex-wrap: wrap; }
+.hitem { display: flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 9px;
+  background: var(--bg-2); border: 1px solid var(--line-2); font-size: 12.5px; }
+.hdot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+.hdot.bad { background: var(--bad); }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.toolbar .input, .toolbar .select { height: 34px; padding: 0 10px; width: auto; min-width: 130px; }
+.mini { font-size: 12px; }
+</style>
+</head>
+<body>
+<script src="/assets/js/core.js"></script>
+<script>
+(async function () {
+  const user = await requireUser();
+  if (!user) return;
+  if (user.role !== 'admin') {
+    document.body.innerHTML = '<div style="display:grid;place-items:center;height:100vh">' +
+      '<div class="center"><h2 class="h2">没有权限</h2><p class="sub">这个页面仅管理员可见</p>' +
+      '<a class="btn btn-primary mt16" href="/studio">回到工作台</a></div></div>';
+    return;
+  }
+  const root = buildLayout('admin', user, '管理后台');
+  refreshBalance();
+
+  root.innerHTML = `
+    <div class="tabs" id="tabs">
+      <button class="on" data-t="overview">概览</button>
+      <button data-t="users">用户</button>
+      <button data-t="orders">充值订单</button>
+      <button data-t="tasks">生成任务</button>
+      <button data-t="provider">上游通道</button>
+      <button data-t="pricing">价格规则</button>
+      <button data-t="audit">审计日志</button>
+    </div>
+    <div id="view"></div>`;
+
+  const view = $('#view');
+  let timer = null;
+
+  $('#tabs').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    $$('#tabs button').forEach((x) => x.classList.toggle('on', x === b));
+    if (timer) { timer.stop(); timer = null; }
+    render(b.dataset.t);
+  });
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  /* ================= 概览 ================= */
+  async function renderOverview() {
+    view.innerHTML = '<div class="skel" style="height:120px"></div>';
+    const r = await get('/api/admin/overview');
+    const k = r.kpi;
+    const maxAmt = Math.max(1, ...r.trend.map((t) => t.amount));
+    view.innerHTML = `
+      <div class="kpis mb24">
+        <div class="kpi hl">
+          <div class="k">今日充值</div>
+          <div class="v">${fmt.money(k.gross_today_minor)}</div>
+          <div class="d">累计 ${fmt.money(k.gross_all_minor)}</div>
+        </div>
+        <div class="kpi"><div class="k">今日生成</div><div class="v">${k.tasks_today}</div>
+          <div class="d">成功 ${k.ok_today} · 失败 ${k.fail_today}</div></div>
+        <div class="kpi"><div class="k">成功率</div>
+          <div class="v">${k.success_rate == null ? '—' : k.success_rate + '%'}</div>
+          <div class="d">今日口径</div></div>
+        <div class="kpi"><div class="k">进行中</div><div class="v">${k.running}</div>
+          <div class="d">队列 + 渲染</div></div>
+        <div class="kpi"><div class="k">待对账</div><div class="v" style="color:${k.needs_review ? 'var(--warn)' : 'inherit'}">${k.needs_review}</div>
+          <div class="d">需人工裁定</div></div>
+        <div class="kpi"><div class="k">用户</div><div class="v">${k.users_total}</div>
+          <div class="d">今日新增 ${k.users_today}</div></div>
+        <div class="kpi"><div class="k">积分池</div><div class="v">${fmt.points(k.available_points)}</div>
+          <div class="d">冻结 ${fmt.points(k.frozen_points)}</div></div>
+        <div class="kpi"><div class="k">今日消耗</div><div class="v">${fmt.points(k.consumed_points_today)}</div>
+          <div class="d">积分</div></div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:1.4fr 1fr;gap:16px">
+        <div class="card">
+          <div class="card-head"><div class="h3">近 7 天</div>
+            <span class="sub mini">柱高 = 每日充值金额</span></div>
+          <div class="card-pad">
+            <div class="chart">
+              ${r.trend.map((t) => `
+                <div class="col">
+                  <div class="vv">${t.amount > 0 ? t.amount.toFixed(0) : ''}</div>
+                  <div class="bx ${t.amount ? '' : 'zero'}" style="height:${t.amount ? Math.max(8, Math.round(t.amount / maxAmt * 100)) : 3}%"></div>
+                  <div class="lb">${t.date}</div>
+                </div>`).join('')}
+            </div>
+            <table class="table mt16">
+              <thead><tr><th>日期</th><th>充值单</th><th>金额</th><th>生成数</th></tr></thead>
+              <tbody>${r.trend.map((t) => `<tr><td class="mono">${t.date}</td><td class="num">${t.orders}</td>
+                <td class="num">¥${t.amount.toFixed(2)}</td><td class="num">${t.tasks}</td></tr>`).join('')}</tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><div class="h3">服务状态</div></div>
+          <div class="card-pad">
+            <div class="health">
+              <div class="hitem"><i class="hdot ${r.provider.health.ok ? '' : 'bad'}"></i>
+                号池网关 ${r.provider.health.ok ? '正常' : '异常'}</div>
+              <div class="hitem"><i class="hdot ${r.provider.enabled ? '' : 'bad'}"></i>
+                生成通道${r.provider.enabled ? '已启用' : '已停用'}</div>
+              <div class="hitem"><i class="hdot ${r.alipay.configured ? '' : 'bad'}"></i>
+                支付宝${r.alipay.configured ? '已配置' : '未配置'}</div>
+            </div>
+            <div class="mt16">
+              <div class="label">上游地址</div>
+              <div class="mono" style="font-size:12.5px;word-break:break-all">${esc(r.provider.base_url || '—')}</div>
+            </div>
+            ${r.provider.health.error ? `<div class="card card-pad mt12" style="background:var(--bad-soft);color:var(--bad);font-size:12.5px">${esc(r.provider.health.error)}</div>` : ''}
+            <div class="mt16">
+              <div class="label">支付宝自检</div>
+              <div class="mini sub" style="line-height:1.9">
+                APP_ID：<span class="mono">${esc(r.alipay.app_id || '未配置')}</span><br>
+                私钥：${r.alipay.private_key_ok ? '✓ 可加载' : '✗ 无法加载'}<br>
+                公钥：${r.alipay.public_key_ok ? '✓ 可加载' : '✗ 无法加载'}<br>
+                回调：<span class="mono">${esc(r.alipay.notify_url || '未配置')}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  /* ================= 用户 ================= */
+  async function renderUsers() {
+    view.innerHTML = `
+      <div class="toolbar">
+        <input class="input" id="kw" placeholder="搜索邮箱或昵称" style="width:240px">
+        <button class="btn btn-sm" id="search">搜索</button>
+      </div>
+      <div class="card" id="ulist"><div class="card-pad"><div class="skel" style="height:200px"></div></div></div>`;
+    const load = async () => {
+      const kw = encodeURIComponent($('#kw').value.trim());
+      const r = await get('/api/admin/users?limit=50&keyword=' + kw);
+      $('#ulist').innerHTML = `<table class="table">
+        <thead><tr><th>ID</th><th>邮箱 / 昵称</th><th>余额</th><th>累计充值</th><th>状态</th><th>注册</th><th></th></tr></thead>
+        <tbody>${r.items.map((u) => `
+          <tr>
+            <td class="num muted">${u.id}</td>
+            <td><div style="font-weight:550">${esc(u.email)}</div>
+              <div class="muted mini">${esc(u.username)} ${u.role === 'admin' ? '· 管理员' : ''}</div></td>
+            <td class="num">${fmt.points(u.available_points)}${u.frozen_points ? `<span class="muted"> (冻 ${u.frozen_points})</span>` : ''}</td>
+            <td class="num">${fmt.points(u.total_recharged)}</td>
+            <td>${u.status === 'active' ? '<span class="tag tag-ok">正常</span>' : '<span class="tag tag-bad">已禁用</span>'}</td>
+            <td class="muted mini">${fmt.time(u.created_at)}</td>
+            <td style="text-align:right;white-space:nowrap">
+              <button class="btn btn-sm" data-pts="${u.id}">调积分</button>
+              <button class="btn btn-sm" data-st="${u.id}" data-cur="${u.status}">${u.status === 'active' ? '禁用' : '启用'}</button>
+            </td>
+          </tr>`).join('')}</tbody></table>`;
+      $$('[data-pts]').forEach((b) => b.onclick = () => adjustPoints(b.dataset.pts, r));
+      $$('[data-st]').forEach((b) => b.onclick = async () => {
+        const next = b.dataset.cur === 'active' ? 'disabled' : 'active';
+        if (!await confirmBox('修改状态', `确定将该用户设为「${next === 'active' ? '正常' : '禁用'}」？`)) return;
+        try { await patch('/api/admin/users/' + b.dataset.st, { status: next }); toast('已更新', 'ok'); load(); }
+        catch (e) { toast(e.message, 'bad'); }
+      });
+    };
+    $('#search').onclick = load;
+    $('#kw').onkeydown = (e) => { if (e.key === 'Enter') load(); };
+    await load();
+  }
+
+  async function adjustPoints(uid) {
+    const m = modal({
+      title: '调整积分 · 用户 #' + uid,
+      body: `
+        <div class="field"><label class="label">变更数量（负数=扣减）</label>
+          <input class="input" id="delta" type="number" placeholder="例如 100 或 -50"></div>
+        <div class="field mb0"><label class="label">原因</label>
+          <input class="input" id="memo" placeholder="如：活动补偿 / 客诉补偿"></div>`,
+      footer: `<div class="row" style="justify-content:flex-end">
+        <button class="btn" id="cx">取消</button><button class="btn btn-primary" id="ok">确认调整</button></div>`,
+    });
+    m.el.querySelector('#cx').onclick = () => m.close();
+    m.el.querySelector('#ok').onclick = async () => {
+      const delta = Number(m.el.querySelector('#delta').value);
+      if (!delta) return toast('请输入变更数量', 'warn');
+      try {
+        await post('/api/admin/users/' + uid + '/points',
+          { delta, memo: m.el.querySelector('#memo').value || '管理员调整' });
+        toast('已调整', 'ok'); m.close(); render('users');
+      } catch (e) { toast(e.message, 'bad'); }
+    };
+  }
+
+  /* ================= 订单 ================= */
+  async function renderOrders() {
+    view.innerHTML = `<div class="card"><div class="card-pad"><div class="skel" style="height:200px"></div></div></div>`;
+    const r = await get('/api/admin/orders?limit=60');
+    const st = { PAID: ['已支付', 'tag-ok'], PENDING: ['待支付', 'tag-warn'], CREATED: ['已创建', 'tag'],
+      EXPIRED: ['已过期', 'tag'], FAILED: ['失败', 'tag-bad'] };
+    view.innerHTML = `<div class="card"><table class="table">
+      <thead><tr><th>订单号</th><th>用户</th><th>套餐</th><th>金额</th><th>积分</th><th>状态</th><th>创建</th><th>支付时间</th></tr></thead>
+      <tbody>${r.items.map((o) => {
+        const s = st[o.status] || ['—', 'tag'];
+        return `<tr>
+          <td class="mono mini">${o.order_no}</td>
+          <td class="mini">${esc(o.email || '')}</td>
+          <td>${esc(o.package_name)}</td>
+          <td class="num">${fmt.money(o.amount_minor)}</td>
+          <td class="num">${o.points}</td>
+          <td><span class="tag ${s[1]}">${s[0]}</span></td>
+          <td class="muted mini">${fmt.time(o.created_at)}</td>
+          <td class="muted mini">${o.paid_at ? fmt.time(o.paid_at) : '—'}</td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="8" class="center muted" style="padding:30px">暂无订单</td></tr>'}</tbody>
+    </table></div>`;
+  }
+
+  /* ================= 任务 ================= */
+  async function renderTasks() {
+    view.innerHTML = `
+      <div class="toolbar">
+        <select class="select" id="st">
+          <option value="">全部状态</option>
+          <option value="QUEUED,SUBMITTING,SUBMITTED,RUNNING">进行中</option>
+          <option value="SUCCEEDED">已完成</option>
+          <option value="FAILED">失败</option>
+          <option value="NEEDS_REVIEW">待对账</option>
+        </select>
+        <input class="input" id="kw" placeholder="搜提示词 / 任务号" style="width:220px">
+        <button class="btn btn-sm" id="search">筛选</button>
+      </div>
+      <div class="card" id="tlist"><div class="card-pad"><div class="skel" style="height:200px"></div></div></div>`;
+
+    const load = async () => {
+      const q = new URLSearchParams({ limit: 50 });
+      if ($('#st').value) q.set('status', $('#st').value);
+      if ($('#kw').value.trim()) q.set('keyword', $('#kw').value.trim());
+      const r = await get('/api/admin/tasks?' + q);
+      $('#tlist').innerHTML = `<table class="table">
+        <thead><tr><th>任务</th><th>用户</th><th>提示词</th><th>状态</th><th>进度</th><th>上游号</th><th>创建</th><th></th></tr></thead>
+        <tbody>${r.items.map((t) => `
+          <tr>
+            <td class="mono mini">${t.task_uid.slice(0, 8)}</td>
+            <td class="mini">${esc(t.email || '')}</td>
+            <td class="mini" style="max-width:260px"><div class="ellipsis">${esc(t.prompt)}</div></td>
+            <td>${statusTag(t.status)}</td>
+            <td class="num mini">${t.progress}%</td>
+            <td class="mono mini muted">${esc(t.provider_task_id || '—')}</td>
+            <td class="muted mini">${fmt.time(t.created_at)}</td>
+            <td style="text-align:right;white-space:nowrap">
+              ${['FAILED', 'NEEDS_REVIEW', 'CANCELLED'].includes(t.status)
+                ? `<button class="btn btn-sm" data-retry="${t.task_uid}">重试</button>` : ''}
+              ${t.status === 'NEEDS_REVIEW'
+                ? `<button class="btn btn-sm" data-res="${t.task_uid}">裁定</button>` : ''}
+              ${t.media_url ? `<a class="btn btn-sm" href="${t.media_url}" download>下载</a>` : ''}
+            </td>
+          </tr>`).join('') || '<tr><td colspan="8" class="center muted" style="padding:30px">没有匹配的任务</td></tr>'}</tbody>
+      </table>`;
+      $$('[data-retry]').forEach((b) => b.onclick = async () => {
+        if (!await confirmBox('重试任务', '会重新冻结该用户的积分并重新排队，确定吗？')) return;
+        try { await post('/api/admin/tasks/' + b.dataset.retry + '/retry'); toast('已重新排队', 'ok'); load(); }
+        catch (e) { toast(e.message, 'bad'); }
+      });
+      $$('[data-res]').forEach((b) => b.onclick = async () => {
+        const m = modal({
+          title: '人工裁定',
+          body: `<p class="sub">这条任务状态异常。退款会把冻结的积分退回用户；已消费则不退。</p>`,
+          footer: `<div class="row" style="justify-content:flex-end">
+            <button class="btn" data-a="charge">视为已消费</button>
+            <button class="btn btn-primary" data-a="refund">退款给用户</button></div>`,
+        });
+        m.el.querySelectorAll('[data-a]').forEach((x) => x.onclick = async () => {
+          try {
+            await post('/api/admin/tasks/' + b.dataset.res + '/resolve', { action: x.dataset.a });
+            toast('已处理', 'ok'); m.close(); load();
+          } catch (e) { toast(e.message, 'bad'); }
+        });
+      });
+    };
+    $('#search').onclick = load;
+    $('#kw').onkeydown = (e) => { if (e.key === 'Enter') load(); };
+    await load();
+  }
+
+  /* ================= 通道 ================= */
+  async function renderProvider() {
+    const r = await get('/api/admin/providers');
+    const p = r.items.find((x) => x.code === 'muse') || r.items[0];
+    view.innerHTML = `
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:16px">
+        <div class="card">
+          <div class="card-head"><div class="h3">号池网关</div>
+            ${p.enabled ? '<span class="tag tag-ok">已启用</span>' : '<span class="tag tag-bad">已停用</span>'}</div>
+          <div class="card-pad">
+            <div class="field"><label class="label">上游地址（muse2api base）</label>
+              <input class="input mono" id="pbase" value="${esc(p.base_url)}"
+                     placeholder="http://127.0.0.1:18610"></div>
+            <div class="field"><label class="label">上游密钥（留空不修改）</label>
+              <input class="input" id="pkey" type="password" placeholder="${p.api_key ? '已配置，留空保持不变' : '未配置'}"></div>
+            <div class="field mb0"><label class="label">启用状态</label>
+              <label class="row" style="gap:8px;cursor:pointer">
+                <input type="checkbox" id="pen" ${p.enabled ? 'checked' : ''}> 允许提交新任务
+              </label></div>
+            <div class="row mt16">
+              <button class="btn btn-primary" id="save">保存</button>
+              <button class="btn" id="test">连通性测试</button>
+            </div>
+            <div id="testOut" class="mt12"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="h3">能力声明</div>
+            <span class="sub mini">前端按此渲染参数</span></div>
+          <div class="card-pad">
+            <table class="table">
+              <tbody>
+                <tr><td class="muted" style="width:120px">支持时长</td><td class="mono">${(p.capabilities.durations || []).join(' / ')} 秒</td></tr>
+                <tr><td class="muted">画面比例</td><td class="mono">${(p.capabilities.aspect_ratios || []).join(' / ')}</td></tr>
+                <tr><td class="muted">清晰度</td><td class="mono">${(p.capabilities.resolutions || []).join(' / ')}</td></tr>
+                <tr><td class="muted">首帧参考</td><td>${p.capabilities.first_frame ? '✓ 支持' : '✗'}</td></tr>
+                <tr><td class="muted">取消任务</td><td>${p.capabilities.cancel ? '✓' : '✗ 上游不支持（排队期可退）'}</td></tr>
+                <tr><td class="muted">回调</td><td>${p.capabilities.callback ? '✓' : '✗ 走轮询'}</td></tr>
+              </tbody>
+            </table>
+            <div class="sub mini mt12" style="line-height:1.8">
+              说明：<br>
+              · 上游 task_id 一旦生成就只查单、不重提，避免重复收费；<br>
+              · 上游说完成但没有成品 → 自动转「待对账」，不自动扣费。
+            </div>
+          </div>
+        </div>
+      </div>`;
+    $('#save').onclick = async () => {
+      const body = { base_url: $('#pbase').value.trim(), enabled: $('#pen').checked };
+      const k = $('#pkey').value.trim();
+      if (k) body.api_key = k;
+      try { await patch('/api/admin/providers/muse', body); toast('已保存', 'ok'); renderProvider(); }
+      catch (e) { toast(e.message, 'bad'); }
+    };
+    $('#test').onclick = async () => {
+      $('#testOut').innerHTML = '<span class="sub">测试中…</span>';
+      try {
+        const t = await post('/api/admin/providers/muse/test');
+        $('#testOut').innerHTML = t.health.ok
+          ? `<div class="card card-pad" style="background:var(--ok-soft);color:var(--ok);font-size:12.5px">✓ 上游可达</div>`
+          : `<div class="card card-pad" style="background:var(--bad-soft);color:var(--bad);font-size:12.5px">✗ ${esc(t.health.error || '不可达')}</div>`;
+      } catch (e) { $('#testOut').innerHTML = `<div class="sub" style="color:var(--bad)">${esc(e.message)}</div>`; }
+    };
+  }
+
+  /* ================= 价格 ================= */
+  async function renderPricing() {
+    const r = await get('/api/admin/pricing');
+    view.innerHTML = `
+      <div class="card">
+        <div class="card-head"><div class="h3">价格规则</div>
+          <span class="sub mini">按「时长 + 清晰度」定价，单位为积分</span></div>
+        <table class="table">
+          <thead><tr><th>时长</th><th>清晰度</th><th>积分</th><th>生效时间</th><th></th></tr></thead>
+          <tbody>${r.items.map((p) => `
+            <tr><td class="num">${p.duration} 秒</td><td class="mono">${p.resolution}</td>
+              <td class="num">${p.points}</td><td class="muted mini">${fmt.time(p.effective_at)}</td>
+              <td style="text-align:right"><button class="btn btn-sm" data-edit="${p.duration}" data-res="${p.resolution}" data-pts="${p.points}">改价</button></td>
+            </tr>`).join('')}</tbody>
+        </table>
+        <div class="card-pad" style="border-top:1px solid var(--line-2)">
+          <div class="h3 mb8" style="font-size:14px">新增 / 覆盖一条</div>
+          <div class="row" style="gap:8px;flex-wrap:wrap">
+            <input class="input" id="ndur" type="number" placeholder="时长(秒)" style="width:120px">
+            <select class="select" id="nres" style="width:130px"><option>720p</option><option>1080p</option></select>
+            <input class="input" id="npts" type="number" placeholder="积分" style="width:120px">
+            <button class="btn btn-primary" id="add">保存</button>
+          </div>
+        </div>
+      </div>`;
+    $$('[data-edit]').forEach((b) => b.onclick = async () => {
+      const m = modal({
+        title: `改价 · ${b.dataset.edit} 秒 / ${b.dataset.res}`,
+        body: `<div class="field mb0"><label class="label">积分</label>
+          <input class="input" id="v" type="number" value="${b.dataset.pts}"></div>`,
+        footer: `<div class="row" style="justify-content:flex-end">
+          <button class="btn" id="cx">取消</button><button class="btn btn-primary" id="ok">保存</button></div>`,
+      });
+      m.el.querySelector('#cx').onclick = () => m.close();
+      m.el.querySelector('#ok').onclick = async () => {
+        try {
+          await post('/api/admin/pricing', {
+            duration: Number(b.dataset.edit), resolution: b.dataset.res,
+            points: Number(m.el.querySelector('#v').value),
+          });
+          toast('已更新', 'ok'); m.close(); renderPricing();
+        } catch (e) { toast(e.message, 'bad'); }
+      };
+    });
+    $('#add').onclick = async () => {
+      try {
+        await post('/api/admin/pricing', {
+          duration: Number($('#ndur').value), resolution: $('#nres').value,
+          points: Number($('#npts').value),
+        });
+        toast('已保存', 'ok'); renderPricing();
+      } catch (e) { toast(e.message, 'bad'); }
+    };
+  }
+
+  /* ================= 审计 ================= */
+  async function renderAudit() {
+    const r = await get('/api/admin/audit?limit=100');
+    view.innerHTML = `<div class="card"><table class="table">
+      <thead><tr><th>时间</th><th>操作者</th><th>动作</th><th>对象</th><th>详情</th></tr></thead>
+      <tbody>${r.items.map((a) => `
+        <tr>
+          <td class="muted mini mono">${fmt.time(a.created_at)}</td>
+          <td class="mini">${esc(a.email || '系统/' + (a.actor_id || '—'))}</td>
+          <td class="mono mini">${esc(a.action)}</td>
+          <td class="mini muted">${esc(a.target_type)} ${esc(a.target_id)}</td>
+          <td class="mini muted" style="max-width:420px"><div class="ellipsis">${esc((a.after_json || a.before_json || '').slice(0, 160))}</div></td>
+        </tr>`).join('') || '<tr><td colspan="5" class="center muted" style="padding:30px">暂无日志</td></tr>'}</tbody>
+    </table></div>`;
+  }
+
+  const MAP = { overview: renderOverview, users: renderUsers, orders: renderOrders,
+    tasks: renderTasks, provider: renderProvider, pricing: renderPricing, audit: renderAudit };
+
+  async function render(key) {
+    try { await MAP[key](); }
+    catch (e) {
+      view.innerHTML = `<div class="card empty">${esc(e.message)}</div>`;
+      toast(e.message, 'bad');
+    }
+  }
+
+  await render('overview');
+  timer = poller(async () => {
+    if ($('#tabs button.on')?.dataset.t === 'overview') await renderOverview();
+  }, 15000);
+})();
+</script>
+</body>
+</html>

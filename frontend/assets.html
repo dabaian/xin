@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>素材库 · Muse Studio</title>
+<link rel="icon" href="/assets/favicon.svg">
+<link rel="stylesheet" href="/assets/css/app.css">
+<style>
+.tabs { display: flex; gap: 4px; background: var(--line-2); padding: 3px; border-radius: 10px; }
+.tabs button { border: none; background: transparent; padding: 6px 14px; border-radius: 8px;
+  font-size: 13px; font-weight: 550; color: var(--ink-3); cursor: pointer; }
+.tabs button.on { background: #fff; color: var(--ink); box-shadow: var(--sh-1); }
+.lib { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.item { background: #fff; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden;
+  transition: box-shadow .16s, transform .16s; }
+.item:hover { box-shadow: var(--sh-2); transform: translateY(-1px); }
+.item .pv { aspect-ratio: 4/3; background: #EEF0F4; cursor: pointer; position: relative; overflow: hidden; }
+.item .pv video, .item .pv img { width: 100%; height: 100%; object-fit: cover; }
+.item .bar2 { padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.item .nm { font-size: 12.5px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .sz { font-size: 11px; color: var(--muted); }
+.acts { position: absolute; inset: 0; background: rgba(16,19,25,.45); opacity: 0;
+  display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity .16s; }
+.item:hover .acts { opacity: 1; }
+.acts .btn { background: rgba(255,255,255,.94); border: none; }
+</style>
+</head>
+<body>
+<script src="/assets/js/core.js"></script>
+<script>
+(async function () {
+  const user = await requireUser();
+  if (!user) return;
+  const root = buildLayout('library', user, '素材库');
+  refreshBalance();
+
+  root.innerHTML = `
+    <div class="between mb16">
+      <div>
+        <h2 class="h2">素材库</h2>
+        <p class="sub" style="margin:4px 0 0" id="usage">加载中…</p>
+      </div>
+      <div class="row">
+        <div class="tabs" id="tabs">
+          <button class="on" data-v="">全部</button>
+          <button data-v="video">成片</button>
+          <button data-v="upload">参考图</button>
+        </div>
+        <button class="btn btn-primary" id="up">上传参考图</button>
+      </div>
+    </div>
+    <div id="lib" class="lib">
+      ${'<div class="skel" style="height:190px"></div>'.repeat(8)}
+    </div>
+    <div class="center mt24" id="pager"></div>
+    <input type="file" id="file" accept="image/jpeg,image/png,image/webp" hidden>`;
+
+  let st = { kind: '', offset: 0, limit: 24, total: 0 };
+
+  $('#tabs').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    $$('#tabs button').forEach((x) => x.classList.toggle('on', x === b));
+    st.kind = b.dataset.v; st.offset = 0; load();
+  });
+
+  $('#up').onclick = () => $('#file').click();
+  $('#file').onchange = async () => {
+    const f = $('#file').files[0];
+    if (!f) return;
+    const fd = new FormData(); fd.append('file', f);
+    busy(true);
+    try {
+      await api('/api/assets/upload', { method: 'POST', body: fd });
+      toast('上传成功', 'ok');
+      st.offset = 0; load();
+    } catch (e) { toast(e.message, 'bad'); }
+    finally { busy(false); $('#file').value = ''; }
+  };
+
+  function esc(s) {
+    return String(s || '').replace(/[&<>"']/g, (c) => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  async function load() {
+    try {
+      const q = new URLSearchParams({ limit: st.limit, offset: st.offset });
+      if (st.kind) q.set('kind', st.kind);
+      const r = await get('/api/assets?' + q);
+      st.total = r.usage.count;
+      $('#usage').textContent =
+        `共 ${r.usage.count} 个文件，占用 ${fmt.bytes(r.usage.bytes)}`;
+      const box = $('#lib');
+      if (!r.items.length) {
+        box.innerHTML = `<div class="card empty" style="grid-column:1/-1">
+          ${ICON.library}<div>素材库是空的</div>
+          <div class="sub" style="margin-top:6px">生成的视频会自动归档到这里</div></div>`;
+        $('#pager').innerHTML = '';
+        return;
+      }
+      box.innerHTML = r.items.map((it) => {
+        const isVideo = it.kind === 'video';
+        return `<div class="item">
+          <div class="pv" data-url="${it.url}" data-kind="${it.kind}">
+            ${isVideo
+              ? `<video src="${it.url}#t=0.1" preload="metadata" muted playsinline></video>`
+              : `<img src="${it.url}" alt="" loading="lazy">`}
+            <div class="acts">
+              <button class="btn btn-sm" data-open="${it.url}" data-kind="${it.kind}">预览</button>
+              <button class="btn btn-sm" data-dl="${it.url}" data-kind="${it.kind}">下载</button>
+              <button class="btn btn-sm btn-danger" data-del="${it.id}">删除</button>
+            </div>
+          </div>
+          <div class="bar2">
+            <div style="min-width:0">
+              <div class="nm">${esc(it.title || (isVideo ? '生成视频' : '参考图'))}</div>
+              <div class="sz">${fmt.bytes(it.bytes)} · ${fmt.ago(it.created_at)}</div>
+            </div>
+            <span class="tag ${isVideo ? 'tag-brand' : ''}">${isVideo ? '视频' : '图片'}</span>
+          </div>
+        </div>`;
+      }).join('');
+      bind();
+      renderPager();
+    } catch (e) { toast(e.message, 'bad'); }
+  }
+
+  function renderPager() {
+    const page = Math.floor(st.offset / st.limit) + 1;
+    const pages = Math.max(1, Math.ceil(st.total / st.limit));
+    if (pages <= 1) { $('#pager').innerHTML = ''; return; }
+    $('#pager').innerHTML = `<div class="row" style="justify-content:center">
+      <button class="btn btn-sm" ${page <= 1 ? 'disabled' : ''} id="prev">上一页</button>
+      <span class="sub">${page} / ${pages}</span>
+      <button class="btn btn-sm" ${page >= pages ? 'disabled' : ''} id="next">下一页</button></div>`;
+    const p = $('#prev'), n = $('#next');
+    if (p) p.onclick = () => { st.offset -= st.limit; load(); };
+    if (n) n.onclick = () => { st.offset += st.limit; load(); };
+  }
+
+  function bind() {
+    $$('[data-open]').forEach((b) => b.onclick = (e) => {
+      e.stopPropagation();
+      const kind = b.dataset.kind;
+      modal({
+        title: kind === 'video' ? '视频预览' : '图片预览', wide: true,
+        body: kind === 'video'
+          ? `<video src="${b.dataset.open}" controls autoplay playsinline style="width:100%;border-radius:12px;background:#000;max-height:70vh"></video>`
+          : `<img src="${b.dataset.open}" style="width:100%;border-radius:12px">`,
+      });
+    });
+    $$('[data-dl]').forEach((b) => b.onclick = (e) => {
+      e.stopPropagation();
+      downloadUrl(b.dataset.dl, 'musestudio-' + Date.now() + (b.dataset.kind === 'video' ? '.mp4' : '.png'));
+    });
+    $$('[data-del]').forEach((b) => b.onclick = async (e) => {
+      e.stopPropagation();
+      if (!await confirmBox('删除素材', '删除后无法恢复，确定吗？', '删除', true)) return;
+      try { await del('/api/assets/' + b.dataset.del); toast('已删除', 'ok'); load(); }
+      catch (err) { toast(err.message, 'bad'); }
+    });
+  }
+
+  await load();
+})();
+</script>
+</body>
+</html>

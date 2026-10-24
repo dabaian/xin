@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>生成工作台 · Muse Studio</title>
+<link rel="icon" href="/assets/favicon.svg">
+<link rel="stylesheet" href="/assets/css/app.css">
+<style>
+.work { display: grid; grid-template-columns: 400px minmax(0, 1fr); gap: 18px; align-items: stretch; }
+@media (max-width: 1120px) { .work { grid-template-columns: 1fr; } }
+
+.panel { display: flex; flex-direction: column; gap: 14px; align-self: start; }
+.panel .card { overflow: hidden; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--line-2); }
+.panel-body { padding: 16px 18px 18px; }
+
+/* 提示词 */
+#prompt { min-height: 132px; border: none; padding: 0; font-size: 14.5px; line-height: 1.65; }
+#prompt:focus { box-shadow: none; }
+.prompt-wrap { padding: 16px 18px 8px; }
+.prompt-foot { display: flex; align-items: center; justify-content: space-between; padding: 0 18px 14px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 18px 16px; }
+
+.tpl {
+  padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line);
+  background: #fff; font-size: 12.5px; color: var(--ink-3); cursor: pointer;
+  transition: all .14s;
+}
+.tpl:hover { border-color: var(--brand-line); color: var(--brand-ink); background: var(--brand-soft); }
+
+/* 分段控件 */
+.seg { display: flex; gap: 4px; background: var(--line-2); padding: 3px; border-radius: 10px; }
+.seg button {
+  flex: 1; border: none; background: transparent; padding: 7px 4px; border-radius: 8px;
+  font-size: 13px; font-weight: 550; color: var(--ink-3); cursor: pointer; transition: all .14s;
+  white-space: nowrap;
+}
+.seg button.on { background: #fff; color: var(--ink); box-shadow: var(--sh-1); }
+.seg-2 button { font-size: 12.5px; }
+
+.field-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* 参考图 */
+.drop {
+  border: 1.5px dashed var(--line); border-radius: 12px; padding: 18px;
+  text-align: center; color: var(--muted); cursor: pointer; transition: all .16s;
+  background: var(--bg-2);
+}
+.drop:hover, .drop.over { border-color: var(--brand); background: var(--brand-soft); color: var(--brand-ink); }
+.drop svg { width: 22px; height: 22px; margin: 0 auto 6px; }
+.ref-preview { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+.ref-preview img { width: 100%; height: 168px; object-fit: cover; }
+.ref-preview .rm {
+  position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%;
+  border: none; background: rgba(0,0,0,.55); color: #fff; cursor: pointer; font-size: 14px;
+}
+
+/* 提交条 */
+.submit-bar { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: var(--bg-2); border-top: 1px solid var(--line-2); }
+.cost { font-family: var(--mono); font-size: 19px; font-weight: 700; letter-spacing: -.02em; }
+.cost small { font-family: var(--font); font-size: 12px; font-weight: 500; color: var(--muted); }
+
+/* 预览区 */
+.stage { min-height: 520px; display: flex; flex-direction: column; }
+.stage-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--line-2); }
+.stage-body { flex: 1; display: grid; place-items: center; padding: 20px; background:
+  radial-gradient(circle at 50% 0%, #F3F4F7, #FAFAFB 60%); }
+.screen { width: 100%; max-width: 640px; }
+.screen video { width: 100%; border-radius: 14px; box-shadow: var(--sh-3); background: #000; max-height: 62vh; }
+.screen img { width: 100%; border-radius: 14px; box-shadow: var(--sh-2); }
+
+.state-box { text-align: center; padding: 40px 20px; max-width: 460px; }
+.state-box .big { width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 20px; display: grid; place-items: center;
+  background: var(--brand-soft); color: var(--brand); }
+.state-box .big svg { width: 30px; height: 30px; }
+.state-box h3 { font-size: 17px; margin: 0 0 6px; }
+.progress-wrap { max-width: 360px; margin: 18px auto 0; }
+.progress-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-3); margin-bottom: 6px; }
+
+.result-actions { display: flex; gap: 8px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+.caption-box { margin-top: 14px; padding: 14px 16px; background: var(--bg-2); border: 1px solid var(--line-2);
+  border-radius: 12px; font-size: 13px; color: var(--ink-2); white-space: pre-wrap; line-height: 1.7; text-align: left; }
+
+/* 最近任务 */
+.recent { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; padding: 16px 20px; }
+.thumb {
+  position: relative; border-radius: 10px; overflow: hidden; background: #EDEFF3;
+  aspect-ratio: 9/14; cursor: pointer; border: 1px solid var(--line);
+}
+.thumb video { width: 100%; height: 100%; object-fit: cover; }
+.thumb .ovl { position: absolute; inset: auto 0 0 0; padding: 8px; font-size: 11px;
+  background: linear-gradient(transparent, rgba(0,0,0,.62)); color: #fff; }
+.spin { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff;
+  border-radius: 50%; animation: sp .8s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg) } }
+</style>
+</head>
+<body>
+<script src="/assets/js/core.js"></script>
+<script>
+(async function () {
+  const user = await requireUser();
+  if (!user) return;
+  const root = buildLayout('studio', user, '生成工作台');
+  refreshBalance();
+
+  root.innerHTML = `
+  <div class="work">
+    <!-- 左侧参数 -->
+    <section class="panel">
+      <div class="card" style="padding:8px">
+        <div class="seg" id="segKind">
+          <button data-v="video" class="on">生成视频</button>
+          <button data-v="image">生成图片</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="panel-head">
+          <div class="h3">画面描述</div>
+          <span class="tag" id="promptCount">0 / 2000</span>
+        </div>
+        <div class="prompt-wrap">
+          <textarea id="prompt" class="textarea" maxlength="2000"
+            placeholder="描述你想要的画面：主体、动作、镜头运动、光线、氛围&#10;例：镜头缓慢环绕一杯冒着热气的咖啡，暖色顶光，桌面木质纹理清晰，背景虚化"></textarea>
+        </div>
+        <div class="chips" id="chips"></div>
+      </div>
+
+      <div class="card">
+        <div class="panel-head"><div class="h3">画面参数</div></div>
+        <div class="panel-body">
+          <div class="field">
+            <label class="label">画面比例</label>
+            <div class="seg" id="segAspect">
+              <button data-v="9:16" class="on">9:16 竖屏</button>
+              <button data-v="16:9">16:9 横屏</button>
+              <button data-v="1:1">1:1 方形</button>
+            </div>
+          </div>
+          <div class="field-inline">
+            <div class="field" id="durField" style="margin:0">
+              <label class="label">时长</label>
+              <select class="select" id="selDuration"></select>
+            </div>
+            <div class="field" id="resField" style="margin:0">
+              <label class="label">清晰度</label>
+              <select class="select" id="selRes">
+                <option value="720p">720p 标准</option>
+                <option value="1080p">1080p 高清</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="panel-head">
+          <div class="h3">首帧参考图 <span class="muted" style="font-weight:400;font-size:12px">选填</span></div>
+          <span class="tag" id="refTag" style="display:none">已选择</span>
+        </div>
+        <div class="panel-body">
+          <div id="refArea">
+            <div class="drop" id="drop">
+              ${ICON.image}
+              <div style="font-size:13px">点击上传，或把图片拖进来</div>
+              <div style="font-size:11.5px;margin-top:2px">JPG / PNG / WEBP，≤ 12MB</div>
+            </div>
+          </div>
+          <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" hidden>
+        </div>
+        <div class="submit-bar">
+          <div>
+            <div class="cost"><span id="costVal">—</span> <small id="costUnit">积分 / 条</small></div>
+            <div class="sub" style="font-size:11.5px">余额 <b id="balVal">—</b></div>
+          </div>
+          <div style="flex:1"></div>
+          <button class="btn btn-primary btn-lg" id="go">立即生成</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 右侧舞台 -->
+    <section class="card stage">
+      <div class="stage-head">
+        <div class="h3" id="stageTitle">成片预览</div>
+        <div class="row">
+          <button class="btn btn-sm btn-ghost" id="btnAgain" style="display:none">再来一条</button>
+        </div>
+      </div>
+      <div class="stage-body" id="stage">
+        <div class="state-box">
+          <div class="big">${ICON.studio}</div>
+          <h3>还没有生成记录</h3>
+          <p class="sub">在左侧写下画面描述，选好比例和时长，点「立即生成」</p>
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--line-2)">
+        <div class="panel-head" style="border:none">
+          <div class="h3" style="font-size:14px">最近生成</div>
+          <a class="btn btn-sm btn-ghost" href="/tasks">查看全部 →</a>
+        </div>
+        <div class="recent" id="recent"></div>
+      </div>
+    </section>
+  </div>`;
+
+  /* ---------------- 状态 ---------------- */
+  const S = {
+    kind: 'video',
+    aspect: '9:16', duration: 10, resolution: '720p',
+    refAsset: null, prices: [], caps: {}, current: null, userIdem: null,
+  };
+
+  /* ---------------- 初始化 ---------------- */
+  let meta;
+  try { meta = await get('/api/models'); }
+  catch (e) { toast(e.message, 'bad'); return; }
+
+  S.caps = meta.capabilities || {};
+  S.prices = meta.prices || [];
+  const durs = (S.caps.durations && S.caps.durations.length ? S.caps.durations : [5, 10, 15, 20, 30]);
+  $('#selDuration').innerHTML = durs.map((d) =>
+    `<option value="${d}" ${d === 10 ? 'selected' : ''}>${d} 秒</option>`).join('');
+  S.duration = durs.includes(10) ? 10 : durs[0];
+  $('#selDuration').value = String(S.duration);
+
+  const tpls = meta.templates || [];
+  $('#chips').innerHTML = tpls.map((t) =>
+    `<button class="tpl" data-body="${encodeURIComponent(t.body)}">${t.name}</button>`).join('');
+
+  if (!meta.provider_enabled) toast('生成通道未启用，请联系管理员', 'warn');
+
+  function priceFor(dur, res) {
+    if (S.kind === 'image') return meta.image_points || 5;
+    const hit = S.prices.find((p) => Number(p.duration) === Number(dur) && p.resolution === res);
+    if (hit) return hit.points;
+    return Math.max(1, Number(dur) * (meta.points_per_second || 2));
+  }
+  function refreshCost() {
+    const pts = priceFor(S.duration, S.resolution);
+    $('#costVal').textContent = pts;
+    $('#costUnit').textContent = S.kind === 'image' ? '积分 / 张' : '积分 / 条';
+    $('#go').textContent = S.kind === 'image' ? '生成图片' : '立即生成';
+    return pts;
+  }
+  refreshCost();
+
+  const bal = await refreshBalance();
+  if (bal) $('#balVal').textContent = fmt.points(bal.wallet.available);
+
+  /* ---------------- 交互 ---------------- */
+  const promptEl = $('#prompt');
+  promptEl.addEventListener('input', () => {
+    $('#promptCount').textContent = promptEl.value.length + ' / 2000';
+  });
+  $('#chips').addEventListener('click', (e) => {
+    const b = e.target.closest('.tpl');
+    if (!b) return;
+    const body = decodeURIComponent(b.dataset.body);
+    promptEl.value = promptEl.value.trim() ? promptEl.value.trim() + '，' + body : body;
+    promptEl.dispatchEvent(new Event('input'));
+    promptEl.focus();
+  });
+
+  $('#segAspect').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    $$('#segAspect button').forEach((x) => x.classList.toggle('on', x === b));
+    S.aspect = b.dataset.v;
+  });
+
+  /* 视频 / 图片 切换 */
+  $('#segKind').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    $$('#segKind button').forEach((x) => x.classList.toggle('on', x === b));
+    S.kind = b.dataset.v;
+    const isImg = S.kind === 'image';
+    $('#durField').style.display = isImg ? 'none' : '';
+    $('#resField').style.display = isImg ? 'none' : '';
+    if (isImg) S.aspect = '1:1';
+    else if (S.aspect === '1:1') S.aspect = '9:16';
+    $$('#segAspect button').forEach((x) => x.classList.toggle('on', x.dataset.v === S.aspect));
+    refreshCost();
+  });
+  $('#selDuration').addEventListener('change', (e) => {
+    S.duration = Number(e.target.value); refreshCost();
+  });
+  $('#selRes').addEventListener('change', (e) => {
+    S.resolution = e.target.value; refreshCost();
+  });
+
+  /* 上传 */
+  const dropEl = $('#drop'), fileEl = $('#fileInput');
+  dropEl.onclick = () => fileEl.click();
+  dropEl.addEventListener('dragover', (e) => { e.preventDefault(); dropEl.classList.add('over'); });
+  dropEl.addEventListener('dragleave', () => dropEl.classList.remove('over'));
+  dropEl.addEventListener('drop', (e) => {
+    e.preventDefault(); dropEl.classList.remove('over');
+    if (e.dataTransfer.files[0]) uploadRef(e.dataTransfer.files[0]);
+  });
+  fileEl.addEventListener('change', () => { if (fileEl.files[0]) uploadRef(fileEl.files[0]); });
+
+  async function uploadRef(file) {
+    if (file.size > 12 * 1024 * 1024) return toast('图片不能超过 12MB', 'bad');
+    const fd = new FormData();
+    fd.append('file', file);
+    busy(true);
+    try {
+      const r = await api('/api/assets/upload', { method: 'POST', body: fd });
+      S.refAsset = r.asset;
+      $('#refArea').innerHTML = `
+        <div class="ref-preview">
+          <img src="${r.asset.url}" alt="参考图">
+          <button class="rm" id="rmRef">&times;</button>
+        </div>`;
+      $('#refTag').style.display = 'inline-flex';
+      $('#rmRef').onclick = () => {
+        S.refAsset = null;
+        $('#refTag').style.display = 'none';
+        renderDrop();
+      };
+    } catch (e) { toast(e.message, 'bad'); }
+    finally { busy(false); fileEl.value = ''; }
+  }
+  function renderDrop() {
+    $('#refArea').innerHTML = `
+      <div class="drop" id="drop">
+        ${ICON.image}
+        <div style="font-size:13px">点击上传，或把图片拖进来</div>
+        <div style="font-size:11.5px;margin-top:2px">JPG / PNG / WEBP，≤ 12MB</div>
+      </div>`;
+    const d = $('#drop');
+    d.onclick = () => fileEl.click();
+    d.addEventListener('dragover', (e) => { e.preventDefault(); d.classList.add('over'); });
+    d.addEventListener('dragleave', () => d.classList.remove('over'));
+    d.addEventListener('drop', (e) => {
+      e.preventDefault(); d.classList.remove('over');
+      if (e.dataTransfer.files[0]) uploadRef(e.dataTransfer.files[0]);
+    });
+  }
+
+  /* ---------------- 提交 ---------------- */
+  $('#go').onclick = async () => {
+    const text = promptEl.value.trim();
+    if (!text) { promptEl.focus(); return toast('先写点画面描述吧', 'warn'); }
+    const pts = priceFor(S.duration, S.resolution);
+    const w = await refreshBalance();
+    if (w && w.wallet.available < pts) {
+      const go = await confirmBox('积分不足', `本次需要 ${pts} 积分，当前余额 ${w.wallet.available}。要现在充值吗？`, '去充值');
+      if (go) location.href = '/wallet';
+      return;
+    }
+    S.userIdem = 'ui-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+    busy(true);
+    $('#go').disabled = true;
+    try {
+      const r = await post('/api/tasks', {
+        prompt: text,
+        kind: S.kind,
+        duration: S.kind === 'image' ? 0 : S.duration,
+        aspect_ratio: S.aspect,
+        resolution: S.resolution,
+        image_asset_id: S.refAsset ? S.refAsset.id : null,
+        idempotency_key: S.userIdem,
+      });
+      S.current = r.task;
+      renderRunning(r.task);
+      startPoll();
+      refreshBalance();
+      $('#go').disabled = false;
+      busy(false);
+    } catch (e) {
+      busy(false); $('#go').disabled = false;
+      if (e.status === 402) {
+        const go = await confirmBox('积分不足', e.message, '去充值');
+        if (go) location.href = '/wallet';
+      } else toast(e.message, 'bad');
+    }
+  };
+
+  /* ---------------- 渲染 ---------------- */
+  const stage = $('#stage');
+
+  function renderRunning(t) {
+    const pct = (STATUS[t.status] || {}).pct || 8;
+    stage.innerHTML = `
+      <div class="state-box">
+        <div class="big" style="background:var(--info-soft);color:var(--info)">
+          <div class="spin" style="border-color:rgba(37,99,235,.25);border-top-color:#2563EB;width:26px;height:26px"></div>
+        </div>
+        <h3>${(STATUS[t.status] || {}).text || '生成中'}</h3>
+        <p class="sub" id="stageHint">${hintFor(t)}</p>
+        <div class="progress-wrap">
+          <div class="progress-meta"><span>进度</span><span id="pctText">${pct}%</span></div>
+          <div class="bar running"><i id="pbar" style="width:${pct}%"></i></div>
+        </div>
+      </div>`;
+    $('#stageTitle').textContent = '正在生成';
+  }
+
+  function hintFor(t) {
+    if (t.status === 'QUEUED') return t.queued_ahead ? `前面还有 ${t.queued_ahead} 个任务` : '已进入队列，马上开始';
+    if (t.status === 'SUBMITTING' || t.status === 'SUBMITTED') return '正在把任务交给渲染引擎';
+    return '画面渲染中，通常 1–3 分钟，请勿关闭页面';
+  }
+
+  function updateRunning(t) {
+    const pct = Math.max((STATUS[t.status] || {}).pct || 0, t.progress || 0);
+    const bar = $('#pbar'), hint = $('#stageHint'), pt = $('#pctText');
+    if (!bar) { renderRunning(t); return; }
+    bar.style.width = Math.min(99, pct) + '%';
+    if (pt) pt.textContent = Math.min(99, pct) + '%';
+    if (hint) hint.textContent = hintFor(t);
+  }
+
+  function renderDone(t) {
+    const isImg = t.kind === 'image';
+    $('#stageTitle').textContent = isImg ? '成图' : '成片';
+    const cap = (t.text || '').trim();
+    stage.innerHTML = `
+      <div class="screen">
+        ${isImg
+          ? `<img src="${t.media_url}" alt="生成图片">`
+          : `<video src="${t.media_url}" controls playsinline autoplay loop muted></video>`}
+        <div class="result-actions">
+          <button class="btn btn-primary" id="dl">下载${isImg ? '图片' : '视频'}</button>
+          ${cap ? `<button class="btn" id="cp">复制文案</button>` : ''}
+          <button class="btn" id="again">再生成一条</button>
+        </div>
+        ${cap ? `<div class="caption-box">${escapeHtml(cap)}</div>` : ''}
+      </div>`;
+    $('#dl').onclick = () => downloadUrl(
+      t.media_url, `musestudio-${t.id.slice(0, 8)}${isImg ? '.png' : '.mp4'}`);
+    if (cap) $('#cp').onclick = () => copyText(cap);
+    $('#again').onclick = () => { promptEl.focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+    $('#btnAgain').style.display = 'inline-flex';
+  }
+
+  function renderFail(t) {
+    $('#stageTitle').textContent = '生成失败';
+    const refunded = t.status === 'FAILED';
+    stage.innerHTML = `
+      <div class="state-box">
+        <div class="big" style="background:var(--bad-soft);color:var(--bad)">!</div>
+        <h3>这条没生成成功</h3>
+        <p class="sub">${escapeHtml(t.error || '上游返回失败')}</p>
+        ${refunded ? `<p class="sub" style="color:var(--ok);margin-top:10px">已自动退回 ${t.points} 积分</p>` : ''}
+        <div class="result-actions">
+          <button class="btn btn-primary" id="retry">微调后重试</button>
+        </div>
+      </div>`;
+    $('#retry').onclick = () => promptEl.focus();
+  }
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, (c) => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  /* ---------------- 轮询 ---------------- */
+  let stopPoll = null;
+  function startPoll() {
+    if (stopPoll) stopPoll.stop();
+    stopPoll = poller(async () => {
+      if (!S.current) return;
+      const r = await get('/api/tasks/' + S.current.id);
+      const t = r.task;
+      S.current = t;
+      if (t.status === 'SUCCEEDED') {
+        stopPoll.stop(); stopPoll = null;
+        renderDone(t); refreshBalance(); loadRecent();
+        toast('视频已生成', 'ok');
+      } else if (['FAILED', 'CANCELLED', 'NEEDS_REVIEW'].includes(t.status)) {
+        stopPoll.stop(); stopPoll = null;
+        renderFail(t); refreshBalance(); loadRecent();
+      } else {
+        updateRunning(t);
+      }
+    }, 2500);
+  }
+
+  /* ---------------- 最近 ---------------- */
+  async function loadRecent() {
+    try {
+      const r = await get('/api/tasks?limit=6');
+      const items = r.items.filter((t) => t.status === 'SUCCEEDED' && t.media_url);
+      const box = $('#recent');
+      if (!items.length) {
+        box.innerHTML = `<div class="sub" style="grid-column:1/-1;padding:8px 0">还没有成品，生成第一条试试</div>`;
+        return;
+      }
+      box.innerHTML = items.map((t) => `
+        <div class="thumb" data-url="${t.media_url}" data-id="${t.id}">
+          <video src="${t.media_url}#t=0.1" preload="metadata" muted playsinline></video>
+          <div class="ovl">${escapeHtml((t.prompt || '').slice(0, 18))}</div>
+        </div>`).join('');
+      box.querySelectorAll('.thumb').forEach((el) => {
+        el.onclick = async () => {
+          const rr = await get('/api/tasks/' + el.dataset.id);
+          S.current = rr.task;
+          renderDone(rr.task);
+          $('#stageTitle').textContent = '成片';
+        };
+      });
+    } catch (e) { /* 静默 */ }
+  }
+  loadRecent();
+})();
+</script>
+</body>
+</html>
