@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>生成工作台 · Viora AI</title>
 <link rel="icon" href="/assets/favicon.png">
-<link rel="stylesheet" href="/assets/css/app.css">
+<link rel="stylesheet" href="/assets/css/app.css?v=20261024">
 <style>
 .work { display: grid; grid-template-columns: 400px minmax(0, 1fr); gap: 18px; align-items: stretch; }
 @media (max-width: 1120px) { .work { grid-template-columns: 1fr; } }
@@ -99,7 +99,7 @@
 <body>
 <!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
 <script src="/config.js"></script>
-<script src="/assets/js/core.js"></script>
+<script src="/assets/js/core.js?v=20261024"></script>
 <script>
 (async function () {
   const user = await requireUser();

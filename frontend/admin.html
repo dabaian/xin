@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>管理后台 · Viora AI</title>
 <link rel="icon" href="/assets/favicon.png">
-<link rel="stylesheet" href="/assets/css/app.css">
+<link rel="stylesheet" href="/assets/css/app.css?v=20261024">
 <style>
 .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 20px; overflow-x: auto; }
 .tabs button { border: none; background: transparent; padding: 11px 15px; font-size: 13.5px;
@@ -39,7 +39,7 @@
 <body>
 <!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
 <script src="/config.js"></script>
-<script src="/assets/js/core.js"></script>
+<script src="/assets/js/core.js?v=20261024"></script>
 <script>
 (async function () {
   const user = await requireUser();

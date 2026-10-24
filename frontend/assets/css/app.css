@@ -89,6 +89,16 @@ img, video { display: block; max-width: 100%; }
 .btn:hover { background: var(--bg-2); border-color: #DADFE8; }
 .btn:active { transform: translateY(1px); }
 .btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+
+/* 分段控件（工作台切换、登录方式切换共用） */
+.seg { display: flex; gap: 4px; background: var(--line-2); padding: 3px; border-radius: 10px; }
+.seg button {
+  flex: 1; border: none; background: transparent; padding: 7px 10px; border-radius: 8px;
+  font-size: 13px; font-weight: 550; color: var(--ink-3); cursor: pointer; transition: all .14s;
+  white-space: nowrap;
+}
+.seg button.on { background: #fff; color: var(--ink); box-shadow: var(--sh-1); }
+.seg-2 button { font-size: 12.5px; }
 .btn-primary {
   background: var(--brand); border-color: var(--brand); color: #fff;
   box-shadow: var(--sh-brand);
