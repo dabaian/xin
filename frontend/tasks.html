@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>任务中心 · Muse Studio</title>
-<link rel="icon" href="/assets/favicon.svg">
+<title>任务中心 · Viora AI</title>
+<link rel="icon" href="/assets/favicon.png">
 <link rel="stylesheet" href="/assets/css/app.css">
 <style>
 .filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -30,6 +30,8 @@
 </style>
 </head>
 <body>
+<!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
+<script src="/config.js"></script>
 <script src="/assets/js/core.js"></script>
 <script>
 (async function () {
@@ -80,9 +82,9 @@
     let preview = `<div class="ph">${ICON.studio}</div>`;
     if (t.media_url && t.status === 'SUCCEEDED') {
       preview = t.kind === 'image'
-        ? `<img src="${t.media_url}" alt="" loading="lazy">
+        ? `<img src="${mediaUrl(t.media_url)}" alt="" loading="lazy">
            <div class="pv-badge">图片 · ${t.aspect_ratio || '1:1'}</div>`
-        : `<video src="${t.media_url}#t=0.1" preload="metadata" muted playsinline></video>
+        : `<video src="${mediaUrl(t.media_url)}#t=0.1" preload="metadata" muted playsinline></video>
            <div class="pv-badge">${t.duration || 10}s · ${t.aspect_ratio || '9:16'}</div>`;
     } else if (live) {
       const pct = t.progress || (st.pct || 8);
@@ -93,7 +95,7 @@
     }
     return `
     <div class="tcard" data-id="${t.id}">
-      <div class="pv" data-open="${t.media_url || ''}">${preview}</div>
+      <div class="pv" data-open="${mediaUrl(t.media_url) || ''}">${preview}</div>
       <div class="meta">
         <div class="p-text">${esc(t.prompt)}</div>
         <div class="row" style="justify-content:space-between">
@@ -105,7 +107,7 @@
         <span class="muted" style="font-size:12px">${fmt.ago(t.created_at)}</span>
         <div class="row" style="gap:6px">
           ${t.media_url && t.status === 'SUCCEEDED'
-            ? `<button class="btn btn-sm" data-dl="${t.media_url}" data-name="musestudio-${t.id.slice(0,8)}${t.kind === 'image' ? '.png' : '.mp4'}">下载</button>`
+            ? `<button class="btn btn-sm" data-dl="${mediaUrl(t.media_url)}" data-name="musestudio-${t.id.slice(0,8)}${t.kind === 'image' ? '.png' : '.mp4'}">下载</button>`
             : ''}
           ${live ? `<button class="btn btn-sm btn-ghost" data-cancel="${t.id}">取消</button>` : ''}
           <button class="btn btn-sm btn-ghost" data-detail="${t.id}">详情</button>
@@ -208,7 +210,7 @@
         ${attempts ? `<div class="label mt16">调用记录</div>
           <table class="table"><thead><tr><th>尝试</th><th>结果</th><th>错误码</th><th>时间</th></tr></thead>
           <tbody>${attempts}</tbody></table>` : ''}
-        ${t.media_url ? `<div class="mt16"><a class="btn btn-primary btn-block" href="${t.media_url}" download>下载视频</a></div>` : ''}`,
+        ${t.media_url ? `<div class="mt16"><a class="btn btn-primary btn-block" href="${mediaUrl(t.media_url)}" download>下载视频</a></div>` : ''}`,
     });
   }
 

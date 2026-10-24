@@ -3,8 +3,8 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
-    image: muse-studio:latest
-    container_name: muse-studio
+    image: viora-ai:latest
+    container_name: viora-ai
     restart: always
     env_file:
       - ../.env

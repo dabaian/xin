@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>桌面客户端 · Muse Studio</title>
-<link rel="icon" href="/assets/favicon.svg">
+<title>桌面客户端 · Viora AI</title>
+<link rel="icon" href="/assets/favicon.png">
 <link rel="stylesheet" href="/assets/css/app.css">
 <style>
 .hero-dl { padding: 54px 0 40px; }
@@ -41,12 +41,14 @@
 </style>
 </head>
 <body>
+<!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
+<script src="/config.js"></script>
 <script src="/assets/js/core.js"></script>
 <div class="wrap" style="max-width:1180px;margin:0 auto;padding:0 24px">
   <header class="nav" style="position:static;border:none;background:transparent;height:78px">
     <div class="row" style="height:78px">
       <a class="row" href="/" style="gap:10px;font-weight:700">
-        <div class="brand-mark">M</div><span>Muse Studio</span>
+        <div class="brand-mark">M</div><span>Viora AI</span>
       </a>
       <div style="flex:1"></div>
       <a class="btn btn-sm" href="/studio">进入工作台</a>
@@ -108,7 +110,7 @@
     <div class="card card-pad" style="background:var(--bg-2)">
       <h3 class="h3" style="margin-bottom:10px">安装说明</h3>
       <div class="sub" style="line-height:2">
-        1. 下载 <b>MuseStudio-Setup.exe</b>，双击安装（Win10 1809 及以上 / Win11）。<br>
+        1. 下载 <b>VioraAI-Setup.exe</b>，双击安装（Win10 1809 及以上 / Win11）。<br>
         2. 首次运行如出现「Windows 已保护你的电脑」，点「更多信息 → 仍要运行」。<br>
         3. 用你注册的邮箱登录，客户端会记住这台设备。<br>
         4. 有问题在群里反馈，附上客户端版本号（设置 → 关于）。
@@ -117,7 +119,7 @@
   </section>
 
   <footer style="padding:30px 0;border-top:1px solid var(--line);color:var(--muted);font-size:12.5px">
-    © 2026 Muse Studio
+    © 2026 Viora AI
   </footer>
 </div>
 

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>注册 · Muse Studio</title>
-<link rel="icon" href="/assets/favicon.svg">
+<title>注册 · Viora AI</title>
+<link rel="icon" href="/assets/favicon.png">
 <link rel="stylesheet" href="/assets/css/app.css">
 <style>
 .split { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
@@ -28,6 +28,15 @@
 .hint { font-size: 11.5px; color: var(--muted); margin-top: 5px; }
 .strength { height: 3px; border-radius: 3px; background: var(--line-2); margin-top: 8px; overflow: hidden; }
 .strength i { display: block; height: 100%; width: 0; transition: all .2s; }
+.cap-row { display: flex; gap: 10px; align-items: stretch; }
+.cap-row .input { flex: 1 1 auto; min-width: 0; letter-spacing: .3em; text-transform: uppercase; font-weight: 600; }
+.cap-img {
+  flex: 0 0 auto; width: 132px; height: 44px; border-radius: 9px;
+  border: 1px solid var(--line); background: #F7F8FA; cursor: pointer;
+  object-fit: cover; transition: opacity .15s, border-color .15s;
+}
+.cap-img:hover { border-color: var(--brand-line); }
+.cap-img.loading { opacity: .4; }
 @media (max-width: 900px) { .split { grid-template-columns: 1fr; } .right { display: none; } }
 </style>
 </head>
@@ -54,6 +63,24 @@
           <div class="strength"><i id="sbar"></i></div>
           <div class="hint" id="stip">建议字母 + 数字组合</div>
         </div>
+        <div class="field" id="capField">
+          <label class="label">图形验证码</label>
+          <div class="cap-row">
+            <input class="input" id="capCode" type="text" maxlength="4" autocomplete="off"
+                   inputmode="text" placeholder="输入右侧 4 位" required>
+            <img class="cap-img" id="capImg" alt="验证码" title="点击刷新">
+          </div>
+          <div class="hint" id="capTip">看不清？点一下图片换一张</div>
+        </div>
+        <div class="field" id="mailField">
+          <label class="label">邮箱验证码</label>
+          <div class="cap-row">
+            <input class="input" id="mailCode" type="text" maxlength="6" autocomplete="one-time-code"
+                   inputmode="numeric" placeholder="6 位数字">
+            <button class="btn" id="sendCode" type="button" style="flex:0 0 auto;min-width:112px">获取验证码</button>
+          </div>
+          <div class="hint" id="mailTip">点「获取验证码」，我们会发到上面的邮箱</div>
+        </div>
         <button class="btn btn-primary btn-lg btn-block mt16" id="submit" type="submit">注册并登录</button>
       </form>
       <p class="sub center mt24">已有账号？<a href="/login" style="color:var(--brand);font-weight:600">直接登录</a></p>
@@ -65,12 +92,106 @@
     <div class="bonus">🎁 新用户注册即赠体验积分</div>
   </div>
 </div>
+<!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
+<script src="/config.js"></script>
 <script src="/assets/js/core.js"></script>
 <script>
 (function () {
   get('/api/auth/me').then(() => { location.href = '/studio'; }).catch(() => {});
 
   const pwd = $('#password'), sbar = $('#sbar'), stip = $('#stip');
+
+  /* 图形验证码：后端可关（CAPTCHA_ENABLED=0），关了就把这一栏藏掉 */
+  let capOn = true, capId = '';
+  async function loadCaptcha() {
+    const img = $('#capImg');
+    img.classList.add('loading');
+    try {
+      const r = await get('/api/auth/captcha');
+      if (r && r.enabled === false) {
+        capOn = false;
+        $('#capField').style.display = 'none';
+        $('#capCode').required = false;
+        return;
+      }
+      capId = r.id;
+      img.src = r.image;
+      $('#capCode').value = '';
+      $('#capTip').textContent = '看不清？点一下图片换一张';
+    } catch (err) {
+      console.error('[captcha]', err);
+      $('#capTip').textContent = '验证码加载失败（' + ((err && err.message) || err) + '），点图片重试';
+    } finally {
+      img.classList.remove('loading');
+    }
+  }
+  $('#capImg').addEventListener('click', loadCaptcha);
+  loadCaptcha();
+
+  /* ---------------- 邮箱验证码 ---------------- */
+  let mailOn = true, coolTimer = null;
+
+  function startCooldown(sec) {
+    const btn = $('#sendCode');
+    let left = sec;
+    btn.disabled = true;
+    btn.textContent = left + ' 秒后重发';
+    clearInterval(coolTimer);
+    coolTimer = setInterval(() => {
+      left -= 1;
+      if (left <= 0) {
+        clearInterval(coolTimer);
+        btn.disabled = false;
+        btn.textContent = '重新获取';
+      } else {
+        btn.textContent = left + ' 秒后重发';
+      }
+    }, 1000);
+  }
+
+  async function sendCode() {
+    const email = $('#email').value.trim();
+    if (!email) { toast('请先填写邮箱', 'warn'); $('#email').focus(); return; }
+    if (capOn && !$('#capCode').value.trim()) {
+      toast('请先填写右侧的图形验证码', 'warn'); $('#capCode').focus(); return;
+    }
+    const btn = $('#sendCode');
+    btn.disabled = true; btn.textContent = '发送中…';
+    try {
+      const r = await post('/api/auth/email-code', {
+        email: email,
+        purpose: 'register',
+        captcha_id: capId,
+        captcha_code: $('#capCode').value.trim(),
+      });
+      startCooldown(r.cooldown || 60);
+      $('#mailCode').focus();
+      if (r.echo) {
+        // 演示模式：没配 SMTP，验证码直接回显，方便先把流程走通
+        $('#mailCode').value = r.dev_code || '';
+        $('#mailTip').innerHTML = '<span style="color:var(--warn)">演示模式：邮件服务未配置，验证码已自动填入（' +
+          (r.dev_code || '') + '）</span>';
+        toast('演示模式：验证码已填入', 'warn');
+      } else {
+        $('#mailTip').textContent = '已发送到 ' + email + '，' + Math.round((r.ttl || 600) / 60) + ' 分钟内有效';
+        toast('验证码已发送', 'ok');
+      }
+    } catch (err) {
+      btn.disabled = false; btn.textContent = '获取验证码';
+      toast(err.message || '发送失败', 'bad');
+      if (capOn) loadCaptcha();
+    }
+  }
+
+  $('#sendCode').addEventListener('click', sendCode);
+
+  // 后端可以整体关掉邮箱验证（EMAIL_CODE_REQUIRED=0），那就把这一栏藏起来
+  get('/api/auth/mail/config').then((r) => {
+    if (r && r.email_code_required === false) {
+      mailOn = false;
+      $('#mailField').style.display = 'none';
+    }
+  }).catch(() => {});
   pwd.addEventListener('input', () => {
     const v = pwd.value;
     let score = 0;
@@ -92,18 +213,31 @@
   $('#form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = $('#submit');
+    const codeEl = $('#capCode');
+    const mailEl = $('#mailCode');
+    if (mailOn && !mailEl.value.trim()) {
+      toast('请先获取并填写邮箱验证码', 'warn');
+      mailEl.focus();
+      return;
+    }
     btn.disabled = true; btn.textContent = '创建中…';
     try {
       await post('/api/auth/register', {
         email: $('#email').value.trim(),
         username: $('#username').value.trim(),
         password: $('#password').value,
+        email_code: mailEl.value.trim(),
+        captcha_id: capId,
+        captcha_code: codeEl.value.trim(),
       });
       toast('注册成功，已经登录', 'ok');
       setTimeout(() => { location.href = '/studio'; }, 380);
     } catch (err) {
       btn.disabled = false; btn.textContent = '注册并登录';
       toast(err.message || '注册失败', 'bad');
+      // 图形码/邮箱码都是一次性的，失败后顺手换一张，省得用户再点一次
+      if (capOn) loadCaptcha();
+      if (!/已注册/.test(err.message || '')) mailEl.focus();
     }
   });
   $('#email').focus();

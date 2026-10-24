@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>管理后台 · Muse Studio</title>
-<link rel="icon" href="/assets/favicon.svg">
+<title>管理后台 · Viora AI</title>
+<link rel="icon" href="/assets/favicon.png">
 <link rel="stylesheet" href="/assets/css/app.css">
 <style>
 .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 20px; overflow-x: auto; }
@@ -37,6 +37,8 @@
 </style>
 </head>
 <body>
+<!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
+<script src="/config.js"></script>
 <script src="/assets/js/core.js"></script>
 <script>
 (async function () {
@@ -284,7 +286,7 @@
                 ? `<button class="btn btn-sm" data-retry="${t.task_uid}">重试</button>` : ''}
               ${t.status === 'NEEDS_REVIEW'
                 ? `<button class="btn btn-sm" data-res="${t.task_uid}">裁定</button>` : ''}
-              ${t.media_url ? `<a class="btn btn-sm" href="${t.media_url}" download>下载</a>` : ''}
+              ${t.media_url ? `<a class="btn btn-sm" href="${mediaUrl(t.media_url)}" download>下载</a>` : ''}
             </td>
           </tr>`).join('') || '<tr><td colspan="8" class="center muted" style="padding:30px">没有匹配的任务</td></tr>'}</tbody>
       </table>`;
@@ -399,7 +401,7 @@
           <div class="h3 mb8" style="font-size:14px">新增 / 覆盖一条</div>
           <div class="row" style="gap:8px;flex-wrap:wrap">
             <input class="input" id="ndur" type="number" placeholder="时长(秒)" style="width:120px">
-            <select class="select" id="nres" style="width:130px"><option>720p</option><option>1080p</option></select>
+            <select class="select" id="nres" style="width:130px"><option value="1080p">1080p</option><option value="2k">2K</option></select>
             <input class="input" id="npts" type="number" placeholder="积分" style="width:120px">
             <button class="btn btn-primary" id="add">保存</button>
           </div>

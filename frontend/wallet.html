@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>钱包充值 · Muse Studio</title>
-<link rel="icon" href="/assets/favicon.svg">
+<title>钱包充值 · Viora AI</title>
+<link rel="icon" href="/assets/favicon.png">
 <link rel="stylesheet" href="/assets/css/app.css">
 <style>
 .wallets { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; align-items: start; }
@@ -42,6 +42,38 @@
 .pkg .ribbon { position: absolute; top: -1px; right: 12px; background: var(--brand); color: #fff;
   font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 0 0 7px 7px; }
 
+/* 自定义金额 */
+.custom-box { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--line); }
+.amt-row { display: flex; gap: 10px; align-items: center; }
+.amt-field { position: relative; flex: 1 1 auto; }
+.amt-field i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  font-style: normal; color: var(--muted); font-size: 15px; font-weight: 600; }
+.amt-field input {
+  width: 100%; height: 44px; padding: 0 14px 0 32px; box-sizing: border-box;
+  border: 1.5px solid var(--line); border-radius: var(--r); background: #fff;
+  font-family: var(--mono); font-size: 17px; font-weight: 600; color: var(--ink);
+}
+.amt-field input::placeholder { font-family: var(--font); font-size: 13.5px; font-weight: 400; color: var(--muted); }
+.amt-field input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.amt-row .btn { flex: 0 0 auto; height: 44px; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.chip {
+  border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 5px 13px;
+  font-size: 12.5px; font-weight: 550; color: var(--ink-3); cursor: pointer;
+  font-family: var(--mono); transition: all .14s;
+}
+.chip:hover { border-color: var(--brand-line); color: var(--brand-ink); }
+.chip.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.quote {
+  margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: var(--bg-2);
+  font-size: 13px; min-height: 40px; display: flex; align-items: center;
+  justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.quote b { font-family: var(--mono); font-size: 15.5px; }
+.quote .q-left { color: var(--ink-3); }
+.quote .q-bad { color: var(--bad); font-weight: 550; }
+.quote .q-plus { color: var(--brand); font-weight: 600; }
+
 /* 二维码 */
 .qr-wrap { text-align: center; padding: 6px 0 0; }
 .qr-box {
@@ -69,6 +101,8 @@
 </style>
 </head>
 <body>
+<!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
+<script src="/config.js"></script>
 <script src="/assets/js/core.js"></script>
 <script>
 (async function () {
@@ -95,13 +129,32 @@
             <div class="h3">选择充值套餐</div>
             <div class="sub" style="font-size:12.5px">支付宝扫码，实时到账</div>
           </div>
-          <span class="alipay-logo"><i>支</i>支付宝当面付</span>
+          <span class="alipay-logo" id="payBrand"><i>支</i>支付宝当面付</span>
         </div>
         <div class="card-pad">
           <div class="pkg-grid" id="pkgs">
             ${'<div class="skel" style="height:130px"></div>'.repeat(4)}
           </div>
           <div class="sub mt12" id="payHint" style="font-size:12px"></div>
+
+          <div class="custom-box">
+            <div class="h3" style="font-size:13.5px">自定义金额</div>
+            <div class="sub" style="font-size:12px;margin:2px 0 10px" id="customTip">
+              最低 10 元，1 元 = 10 积分，赠送规则与套餐一致
+            </div>
+            <div class="amt-row">
+              <div class="amt-field">
+                <i>¥</i>
+                <input id="cAmt" type="number" inputmode="decimal" min="10" step="1"
+                       placeholder="输入充值金额（元）" autocomplete="off">
+              </div>
+              <button class="btn btn-primary" id="cPay" disabled>立即充值</button>
+            </div>
+            <div class="chips" id="cChips"></div>
+            <div class="quote" id="cQuote">
+              <span class="q-left">输入金额后显示到账积分</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -133,24 +186,112 @@
   async function loadPackages() {
     const r = await get('/api/wallet/packages');
     const box = $('#pkgs');
-    if (!r.items.length) { box.innerHTML = '<div class="sub">暂未配置套餐</div>'; return; }
+    if (!r.items.length) {
+      box.innerHTML = '<div class="sub">暂未配置套餐，可直接用下方自定义金额充值</div>';
+      initCustom(r.custom || {});
+      return;
+    }
     box.innerHTML = r.items.map((p) => `
       <button class="pkg" data-id="${p.id}">
         ${p.tag ? `<span class="ribbon">${p.tag}</span>` : ''}
         <div class="p-name">${p.name}</div>
-        <div class="p-pts">${fmt.points(p.points)}<small>积分</small></div>
-        <div class="p-bonus">${p.bonus ? `含赠送 ${fmt.points(p.bonus)} 积分` : ''}</div>
+        <div class="p-pts">${fmt.points(p.total_points)}<small>积分</small></div>
+        <div class="p-bonus">${p.bonus ? `充 ${fmt.points(p.points)} + 送 ${fmt.points(p.bonus)}` : '&nbsp;'}</div>
         <div class="p-price">${p.price_yuan}<small> 元</small></div>
       </button>`).join('');
     box.querySelectorAll('.pkg').forEach((b) => {
-      b.onclick = () => checkout(b.dataset.id);
+      b.onclick = () => checkout({ package_id: b.dataset.id });
     });
-    if (r.alipay_ready === false && !r.mock) {
-      $('#payHint').innerHTML = '<span style="color:var(--warn)">⚠ 支付宝参数未配置，充值暂不可用，请联系客服</span>';
-    } else if (r.mock) {
+    const ch = r.channel || {};
+    const brand = $('#payBrand');
+    if (brand) {
+      brand.innerHTML = ch.code === 'alipay'
+        ? '<i>支</i>支付宝当面付'
+        : `<i>${(ch.name || '付').slice(0, 1)}</i>${ch.name || '在线支付'}`;
+    }
+    if (!ch.code) {
+      $('#payHint').innerHTML = '<span style="color:var(--warn)">⚠ 收款通道未配置（缺支付商户参数），暂时无法充值，请联系客服</span>';
+    } else if (r.mock || ch.mock) {
       $('#payHint').innerHTML = '<span style="color:var(--info)">当前为模拟支付模式（测试用），点开二维码后可点「模拟支付」直接到账</span>';
     } else {
       $('#payHint').textContent = '扫码后请勿关闭页面，到账会自动刷新余额';
+    }
+    initCustom(r.custom || {});
+  }
+
+  /* ---------------- 自定义金额 ---------------- */
+  const CUSTOM_CHIPS = [50, 100, 200, 500, 1000];
+  let customBusy = false, customTimer = null, customLast = null;
+
+  function initCustom(cfg) {
+    const min = Number(cfg.min || 10), max = Number(cfg.max || 20000);
+    const tiers = Array.isArray(cfg.tiers) ? cfg.tiers : [];
+    const input = $('#cAmt');
+    input.min = String(min);
+    input.max = String(max);
+    $('#customTip').textContent = `单笔 ${min} ~ ${max} 元，1 元 = 10 积分` +
+      (tiers.length ? '，' + tiers.slice().reverse().map((t) => `充 ${t.min_yuan} 元赠 ${t.rate}%`).join('、') : '');
+
+    // 快捷金额：只渲染不超过上限的
+    $('#cChips').innerHTML = CUSTOM_CHIPS.filter((v) => v <= max)
+      .map((v) => `<button class="chip" data-v="${v}">${v} 元</button>`).join('');
+    $('#cChips').querySelectorAll('.chip').forEach((b) => {
+      b.onclick = () => {
+        input.value = b.dataset.v;
+        input.dispatchEvent(new Event('input'));
+      };
+    });
+
+    input.addEventListener('input', () => {
+      $('#cChips').querySelectorAll('.chip').forEach((b) => {
+        b.classList.toggle('on', String(b.dataset.v) === input.value);
+      });
+      clearTimeout(customTimer);
+      customTimer = setTimeout(() => quoteCustom(input.value, min, max), 260);
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !$('#cPay').disabled) $('#cPay').click();
+    });
+    $('#cPay').onclick = () => checkout({ custom_yuan: input.value });
+  }
+
+  async function quoteCustom(raw, min, max) {
+    const q = $('#cQuote'), btn = $('#cPay');
+    const v = String(raw || '').trim();
+    if (!v) {
+      q.innerHTML = '<span class="q-left">输入金额后显示到账积分</span>';
+      btn.disabled = true; customLast = null; return;
+    }
+    const n = Number(v);
+    if (!isFinite(n) || n <= 0) {
+      q.innerHTML = '<span class="q-bad">请输入正确的金额</span>';
+      btn.disabled = true; customLast = null; return;
+    }
+    if (n < min) {
+      q.innerHTML = `<span class="q-bad">最低充值 ${min} 元</span>`;
+      btn.disabled = true; customLast = null; return;
+    }
+    if (n > max) {
+      q.innerHTML = `<span class="q-bad">单笔最高 ${max} 元，大额请分笔充值</span>`;
+      btn.disabled = true; customLast = null; return;
+    }
+    try {
+      const r = await get('/api/wallet/custom-quote?yuan=' + encodeURIComponent(n));
+      if (!r.ok) {
+        q.innerHTML = `<span class="q-bad">${r.error || '金额不合法'}</span>`;
+        btn.disabled = true; customLast = null; return;
+      }
+      customLast = r;
+      q.innerHTML = `
+        <span class="q-left">到账 <b>${fmt.points(r.total)}</b> 积分` +
+        (r.bonus ? ` <span class="q-plus">(含赠送 ${fmt.points(r.bonus)} · ${r.bonus_label})</span>` : '') +
+        `</span>
+        <span class="mono" style="font-size:12.5px;color:var(--muted)">¥${r.yuan}</span>`;
+      btn.disabled = false;
+      btn.textContent = `充值 ¥${r.yuan}`;
+    } catch (e) {
+      q.innerHTML = `<span class="q-bad">${e.message}</span>`;
+      btn.disabled = true; customLast = null;
     }
   }
 
@@ -190,22 +331,28 @@
   /* ---------------- 下单 + 扫码 ---------------- */
   let watch = null;
 
-  async function checkout(packageId) {
+  async function checkout(payload) {
+    if (customBusy) return;
+    customBusy = true;
     busy(true);
     try {
-      const r = await post('/api/payments/checkout', { package_id: packageId });
+      const r = await post('/api/payments/checkout', payload);
       busy(false);
-      openPayModal({ ...r.order, mock: !!r.mock });
+      customBusy = false;
+      openPayModal({ ...r.order, mock: !!r.mock, channel: r.channel,
+                     channel_name: r.channel_name || '支付宝' });
     } catch (e) {
       busy(false);
+      customBusy = false;
       toast(e.message, 'bad');
     }
   }
 
   function openPayModal(order) {
     let left = Math.max(0, Math.round((new Date(order.expires_at.replace(' ', 'T')) - Date.now()) / 1000));
+    const payName = order.channel === 'alipay' ? '支付宝' : (order.channel_name || '收款');
     const m = modal({
-      title: '支付宝扫码充值',
+      title: payName + '扫码充值',
       body: `
         <div class="qr-wrap">
           <div class="pay-amt">¥${order.amount_yuan}</div>
@@ -213,7 +360,7 @@
             到账 <b style="color:var(--brand-ink)">${fmt.points(order.points)}</b> 积分 · ${order.package_name}
           </div>
           <div class="qr-box" id="qrBox">
-            ${order.qr_image ? `<img src="${order.qr_image}" alt="支付宝二维码">` : ''}
+            ${order.qr_image ? `<img src="${order.qr_image}" alt="${payName}二维码">` : ''}
           </div>
           ${order.mock ? `<button class="btn btn-block mt12" id="mockPay">模拟支付（测试模式）</button>` : ''}
           <div class="pay-status" id="payStatus">
@@ -221,7 +368,7 @@
             <span>等待支付 · <b id="cd" class="mono">--:--</b></span>
           </div>
           <div class="steps">
-            <div><span class="dot-n">1</span><span>打开手机 <b>支付宝</b>，点「扫一扫」</span></div>
+            <div><span class="dot-n">1</span><span>打开手机 <b>${payName}</b>，点「扫一扫」</span></div>
             <div><span class="dot-n">2</span><span>对准上方二维码，确认金额后付款</span></div>
             <div><span class="dot-n">3</span><span>付款成功后本页会<b>自动刷新到账</b>，无需手动操作</span></div>
           </div>
@@ -271,6 +418,14 @@
           loadWallet(); loadOrders(); loadLedger();
         }, 2200);
         toast('充值到账 +' + r.points + ' 积分', 'ok');
+        // 自定义金额用过了就清空，避免重复下单
+        const amt = $('#cAmt');
+        if (amt) {
+          amt.value = '';
+          $('#cChips').querySelectorAll('.chip').forEach((b) => b.classList.remove('on'));
+          const b = $('#cPay'); b.disabled = true; b.textContent = '立即充值';
+          $('#cQuote').innerHTML = '<span class="q-left">输入金额后显示到账积分</span>';
+        }
         loadWallet();
       } else if (r.status === 'EXPIRED') {
         watch.stop(); watch = null; clearInterval(timer);

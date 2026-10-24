@@ -70,22 +70,136 @@ def _read_key(inline_value: str, path_value: str) -> str:
 
 # ------------------------------------------------------------------ 充值套餐
 # 定价口径：1 元 = 10 积分。price 单位是「分」，整数，避免浮点误差。
-DEFAULT_PACKAGES = [
-    {"id": "starter", "name": "体验包", "points": 100, "price": 1000, "bonus": 0, "tag": ""},
-    {"id": "basic", "name": "基础包", "points": 500, "price": 5000, "bonus": 50, "tag": "最受欢迎"},
-    {"id": "pro", "name": "专业包", "points": 1200, "price": 12000, "bonus": 200, "tag": ""},
-    {"id": "studio", "name": "工作室包", "points": 3000, "price": 30000, "bonus": 800, "tag": "性价比最高"},
+#
+# 赠送规则（单一来源，别在套餐里手写 bonus，容易和规则打架）：
+#   充值 200 ~ 499 元  → 赠 10%
+#   充值 500 ~ 999 元  → 赠 15%
+#   充值满 1000 元     → 赠 20%
+#   不足 200 元        → 不赠
+# 自定义金额同样走这套规则。
+BONUS_TIERS = [
+    {"min_minor": 100000, "num": 1, "den": 5, "label": "满 1000 元赠 20%"},
+    {"min_minor": 50000, "num": 3, "den": 20, "label": "满 500 元赠 15%"},
+    {"min_minor": 20000, "num": 1, "den": 10, "label": "满 200 元赠 10%"},
 ]
 
+# 自定义充值：单位元，最低 10 元，最高 2 万（防手滑填错）
+CUSTOM_MIN_YUAN = 10
+CUSTOM_MAX_YUAN = 20000
+
+DEFAULT_PACKAGES = [
+    {"id": "starter", "name": "体验包", "points": 100, "price": 1000, "tag": ""},
+    {"id": "basic", "name": "基础包", "points": 500, "price": 5000, "tag": ""},
+    {"id": "standard", "name": "标准包", "points": 2000, "price": 20000, "tag": "满 200 赠 10%"},
+    {"id": "pro", "name": "专业包", "points": 5000, "price": 50000, "tag": "满 500 赠 15%"},
+    {"id": "studio", "name": "工作室包", "points": 10000, "price": 100000, "tag": "满 1000 赠 20%"},
+    {"id": "enterprise", "name": "企业包", "points": 20000, "price": 200000, "tag": "最划算"},
+]
+
+
+def bonus_tier(price_minor: int) -> dict | None:
+    """命中的赠送档位；不满足门槛返回 None。"""
+    m = int(price_minor or 0)
+    for tier in BONUS_TIERS:          # 已按门槛从高到低排列
+        if m >= tier["min_minor"]:
+            return tier
+    return None
+
+
+def bonus_for(points: int, price_minor: int) -> int:
+    """按充值金额算赠送积分（整数运算，不出现浮点误差）。"""
+    tier = bonus_tier(price_minor)
+    if not tier:
+        return 0
+    return int(points or 0) * int(tier["num"]) // int(tier["den"])
+
+
+def custom_package(yuan) -> dict:
+    """自定义金额（元）→ 套餐结构。不合法时抛 ValueError，消息可直接给用户看。"""
+    try:
+        y = round(float(str(yuan).strip()), 2)
+    except (TypeError, ValueError):
+        raise ValueError("充值金额格式不正确") from None
+    if y != y or y in (float("inf"), float("-inf")):
+        raise ValueError("充值金额格式不正确")
+    if y < CUSTOM_MIN_YUAN:
+        raise ValueError("自定义充值不能低于 %d 元" % CUSTOM_MIN_YUAN)
+    if y > CUSTOM_MAX_YUAN:
+        raise ValueError("单笔充值不能超过 %d 元，大额请分笔或联系客服" % CUSTOM_MAX_YUAN)
+
+    price_minor = int(round(y * 100))
+    points = max(1, price_minor // 10)       # 1 元 = 10 积分
+    bonus = bonus_for(points, price_minor)
+    tier = bonus_tier(price_minor)
+    return {
+        "id": "custom",
+        "name": "自定义充值 %s 元" % ("%g" % y),
+        "points": points,
+        "bonus": bonus,
+        "total_points": points + bonus,
+        "price": price_minor,
+        "price_minor": price_minor,
+        "price_yuan": "%.2f" % y,
+        "bonus_label": ("赠 %d%%" % round(100 * tier["num"] / tier["den"])) if tier else "",
+        "tag": "",
+    }
+
+
+def package_with_bonus(pkg: dict) -> dict:
+    """把套餐补上 bonus / total_points / bonus_label。"""
+    p = dict(pkg)
+    points = int(p.get("points") or 0)
+    price = int(p.get("price") or 0)
+    # 显式写了 bonus 的以显式为准（方便临时做活动），否则按规则算
+    bonus = int(p.get("bonus")) if p.get("bonus") not in (None, "") else bonus_for(points, price)
+    p["points"] = points
+    p["price"] = price
+    p["bonus"] = max(0, bonus)
+    p["total_points"] = points + p["bonus"]
+    tier = bonus_tier(price)
+    p["bonus_label"] = ("赠 %d%%" % round(100 * tier["num"] / tier["den"])) if tier else ""
+    p["price_yuan"] = round(price / 100.0, 2)
+    return p
+
 # 计费：图片 5 积分/张；视频按 2 积分/秒（5 秒 = 10，10 秒 = 20）
+# 上面的「每秒积分」是 1080p 基准价，2K 在基准价上再乘倍率。
 POINTS_PER_IMAGE = 5
 POINTS_PER_SECOND = 2
+
+# ------------------------------------------------------------------ 清晰度
+# 展示顺序即前端下拉顺序，第一项为默认值。
+# value 会原样透传给号池的 resolution 字段，改这里要确认上游认这个值。
+RESOLUTIONS = [
+    {"value": "1080p", "label": "1080p 高清", "multiplier": 1, "tag": "推荐"},
+    {"value": "2k", "label": "2K 超清", "multiplier": 2, "tag": ""},
+]
+DEFAULT_RESOLUTION = RESOLUTIONS[0]["value"]
+RESOLUTION_VALUES = [r["value"] for r in RESOLUTIONS]
+RESOLUTION_MULTIPLIER = {r["value"]: r["multiplier"] for r in RESOLUTIONS}
+
+
+def resolution_multiplier(value: str) -> int:
+    """清晰度倍率；未知档位按基准价（1 倍）算，不会白送也不会多扣。"""
+    return int(RESOLUTION_MULTIPLIER.get(normalize_resolution(value), 1))
+
+
+def normalize_resolution(value: str | None) -> str:
+    """把前端/历史数据的各种写法归一到配置里的档位。"""
+    v = (value or "").strip().lower().replace(" ", "")
+    if v in ("2k", "1440p", "2.5k", "qhd"):
+        return "2k"
+    if v in ("1080", "1080p", "fhd", "fullhd", "1920x1080"):
+        return "1080p"
+    if v in ("720", "720p", "hd"):
+        # 老版本只用过 720p，等价看作是当时的默认档
+        return "1080p"
+    return DEFAULT_RESOLUTION
 
 
 @dataclass
 class Settings:
     # ---------- 基础 ----------
-    app_name: str = field(default_factory=lambda: _env("APP_NAME", "Muse Studio"))
+    app_name: str = field(default_factory=lambda: _env("APP_NAME", "Viora AI"))
     app_env: str = field(default_factory=lambda: _env("APP_ENV", "prod"))
     secret_key: str = field(default_factory=lambda: _env("SECRET_KEY", ""))
     host: str = field(default_factory=lambda: _env("BIND_HOST", "127.0.0.1"))
@@ -100,6 +214,23 @@ class Settings:
     # ---------- 管理员 ----------
     admin_user: str = field(default_factory=lambda: _env("ADMIN_USERNAME", "admin"))
     admin_password: str = field(default_factory=lambda: _env("ADMIN_PASSWORD", ""))
+
+    # ---------- 注册验证码 ----------
+    captcha_enabled: bool = field(default_factory=lambda: _bool("CAPTCHA_ENABLED", True))
+    captcha_ttl: int = field(default_factory=lambda: _int("CAPTCHA_TTL", 300))
+
+    # ---------- 邮件（注册 / 验证码登录） ----------
+    smtp_host: str = field(default_factory=lambda: _env("SMTP_HOST", ""))
+    smtp_port: int = field(default_factory=lambda: _int("SMTP_PORT", 465))
+    smtp_user: str = field(default_factory=lambda: _env("SMTP_USER", ""))
+    smtp_pass: str = field(default_factory=lambda: _env("SMTP_PASS", ""))
+    smtp_from: str = field(default_factory=lambda: _env("SMTP_FROM", ""))
+    smtp_ssl: bool = field(default_factory=lambda: _bool("SMTP_SSL", True))
+    smtp_starttls: bool = field(default_factory=lambda: _bool("SMTP_STARTTLS", False))
+    # 没配 SMTP 时是否允许把验证码回传给前端（本地调试用，线上务必关）
+    mail_echo: bool = field(default_factory=lambda: _bool("MAIL_ECHO", False))
+    email_code_ttl: int = field(default_factory=lambda: _int("EMAIL_CODE_TTL", 600))
+    email_code_required: bool = field(default_factory=lambda: _bool("EMAIL_CODE_REQUIRED", True))
 
     # ---------- 上游：muse2api 号池网关 ----------
     # 与现有 muse2api 完全兼容：/v1/videos/generations、/v1/chat/completions、
@@ -139,10 +270,20 @@ class Settings:
     alipay_timeout: str = field(default_factory=lambda: _env("ALIPAY_TIMEOUT", "30m"))
     # 模拟支付：只用于没有商户密钥时跑通/验收流程，生产必须关掉
     alipay_mock: bool = field(default_factory=lambda: _bool("ALIPAY_MOCK", False))
+    # 支付通道：留空=自动（配了支付宝参数就真收款，否则模拟）。
+    # 想接微信 / 易支付 / 手工转账，在 payments/gateway.py 的 REGISTRY 里加一个适配器，
+    # 然后把这里设成对应 code 即可，业务层不用改。
+    payment_channel: str = field(default_factory=lambda: _env("PAYMENT_CHANNEL", "").strip().lower())
+
+    # ---------- 前后端分离 / 对外接入 ----------
+    # 后端 API 对外前缀（默认空）。后端挂在域名子路径（如 https://x.com/viora/api）时填 /viora。
+    api_base: str = field(default_factory=lambda: _env("API_BASE", "").rstrip("/"))
+    # 允跨域调用前端/接口的来源，逗号分隔；* 表示全放开（仅调试，带 Cookie 时不能用 *）
+    cors_origins: str = field(default_factory=lambda: _env("CORS_ORIGINS", ""))
 
     # ---------- 桌面端 ----------
     desktop_version: str = field(default_factory=lambda: _env("DESKTOP_VERSION", "2.0.0"))
-    desktop_setup_name: str = field(default_factory=lambda: _env("DESKTOP_SETUP_NAME", "MuseStudio-Setup.exe"))
+    desktop_setup_name: str = field(default_factory=lambda: _env("DESKTOP_SETUP_NAME", "VioraAI-Setup.exe"))
 
     # ---------- 行为开关 ----------
     allow_register: bool = field(default_factory=lambda: _bool("ALLOW_REGISTER", True))
@@ -173,14 +314,19 @@ class Settings:
             try:
                 data = json.loads(raw)
                 if isinstance(data, list) and data:
-                    return data
+                    return [package_with_bonus(p) for p in data]
             except json.JSONDecodeError:
                 pass
-        return DEFAULT_PACKAGES
+        return [package_with_bonus(p) for p in DEFAULT_PACKAGES]
 
     @property
     def alipay_ready(self) -> bool:
         return bool(self.alipay_app_id and self.alipay_private_key and self.alipay_public_key)
+
+    @property
+    def cors_list(self) -> list[str]:
+        raw = (self.cors_origins or "").replace(";", ",")
+        return [x.strip().rstrip("/") for x in raw.split(",") if x.strip()]
 
     @property
     def site_base(self) -> str:

@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from .. import db, ledger, signing, tasks as engine
-from ..config import CFG
+from ..config import CFG, DEFAULT_RESOLUTION, RESOLUTIONS, normalize_resolution
 from ..deps import client_ip, current_user
 from ..providers.muse import provider_from_row
 
@@ -22,7 +22,7 @@ class TaskIn(BaseModel):
     kind: str = "video"          # video / image
     duration: int = 10
     aspect_ratio: str = "9:16"
-    resolution: str = "720p"
+    resolution: str = DEFAULT_RESOLUTION
     image_asset_id: int | None = None
     idempotency_key: str = ""
     template_id: int | None = None
@@ -47,13 +47,15 @@ def models(user=Depends(current_user), conn=Depends(db.get_db)):
         "SELECT duration, resolution, points FROM pricing_rules WHERE provider_code='muse' "
         "AND model='muse-video' AND active=1 ORDER BY duration").fetchall()
     prices = [dict(r) for r in rules]
-    # 补齐缺失时长（2 积分/秒），前端下拉不留空档
-    have = {(p["duration"], p["resolution"]) for p in prices}
+    # 补齐缺失档位（基准 2 积分/秒 × 清晰度倍率），前端下拉不留空档
+    have = {(int(p["duration"]), p["resolution"]) for p in prices}
     for dur in (caps.get("durations") or [10]):
-        for res in ("720p",):
-            if (dur, res) not in have:
-                prices.append({"duration": dur, "resolution": res,
-                               "points": max(1, dur * CFG.points_per_second)})
+        for res in RESOLUTIONS:
+            key = (int(dur), res["value"])
+            if key not in have:
+                prices.append({"duration": int(dur), "resolution": res["value"],
+                               "points": max(1, int(dur) * CFG.points_per_second
+                                             * int(res["multiplier"]))})
     prices.sort(key=lambda x: (x["duration"], x["resolution"]))
 
     img_row = conn.execute(
@@ -70,17 +72,20 @@ def models(user=Depends(current_user), conn=Depends(db.get_db)):
         "prices": prices,
         "points_per_second": CFG.points_per_second,
         "image_points": image_points,
+        "resolutions": RESOLUTIONS,
+        "default_resolution": DEFAULT_RESOLUTION,
         "templates": [dict(t) for t in tpls],
         "provider_enabled": bool(prow and prow["enabled"]),
     }
 
 
 @router.get("/quote")
-def get_quote(duration: int = 10, resolution: str = "720p", kind: str = "video",
+def get_quote(duration: int = 10, resolution: str = DEFAULT_RESOLUTION, kind: str = "video",
               user=Depends(current_user), conn=Depends(db.get_db)):
     pts = engine.quote(conn, duration, resolution, kind)
     bal = ledger.balance(conn, user["id"])
-    return {"ok": True, "points": pts, "wallet": bal, "affordable": bal["available"] >= pts}
+    return {"ok": True, "points": pts, "wallet": bal, "affordable": bal["available"] >= pts,
+            "resolution": normalize_resolution(resolution)}
 
 
 # ------------------------------------------------------------------ 提交
@@ -95,7 +100,7 @@ def create(payload: TaskIn, request: Request, user=Depends(current_user),
     duration = 0 if kind == "image" else max(3, min(int(payload.duration or 10), 60))
     aspect = payload.aspect_ratio if payload.aspect_ratio in ("9:16", "16:9", "1:1") else (
         "1:1" if kind == "image" else "9:16")
-    resolution = payload.resolution if payload.resolution in ("720p", "1080p") else "720p"
+    resolution = normalize_resolution(payload.resolution)
 
     image_url = ""
     if payload.image_asset_id:

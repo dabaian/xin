@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==========================================================================
-#  Muse Studio 增量更新（代码已改，只推代码 + 重启，不动 .env / data）
+#  Viora AI 增量更新（代码已改，只推代码 + 重启，不动 .env / data）
 #
 #  用法：
 #    sudo bash deploy/update.sh                # 从当前目录推代码
@@ -12,7 +12,7 @@
 set -euo pipefail
 
 SRC_DIR="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-APP_DIR="${APP_DIR:-/opt/muse-studio}"
+APP_DIR="${APP_DIR:-/opt/viora-ai}"
 APP_USER="${APP_USER:-muse}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
@@ -41,7 +41,7 @@ if [[ -f "$APP_DIR/data/studio.db" ]]; then
 fi
 
 # ---------------------------------------------------------------- 停服
-systemctl stop muse-studio || true
+systemctl stop viora-ai || true
 
 # ---------------------------------------------------------------- 推代码
 rsync -a --delete --exclude '__pycache__' --exclude '*.pyc' \
@@ -60,12 +60,12 @@ echo "==> 依赖已更新"
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 
 # ---------------------------------------------------------------- 起服
-systemctl start muse-studio
+systemctl start viora-ai
 sleep 3
 
 if curl -fsS --max-time 10 http://127.0.0.1:8080/healthz | grep -q '"ok":true'; then
   echo "==> ✅ 更新完成，服务健康"
-  echo "    如需回滚：cp $APP_DIR/backups/studio-$STAMP.db $APP_DIR/data/studio.db && systemctl restart muse-studio"
+  echo "    如需回滚：cp $APP_DIR/backups/studio-$STAMP.db $APP_DIR/data/studio.db && systemctl restart viora-ai"
 else
   echo "==> ❌ 服务未健康，看日志："
   tail -n 30 "$APP_DIR/logs/app.log" || true

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>生成工作台 · Muse Studio</title>
-<link rel="icon" href="/assets/favicon.svg">
+<title>生成工作台 · Viora AI</title>
+<link rel="icon" href="/assets/favicon.png">
 <link rel="stylesheet" href="/assets/css/app.css">
 <style>
 .work { display: grid; grid-template-columns: 400px minmax(0, 1fr); gap: 18px; align-items: stretch; }
@@ -97,6 +97,8 @@
 </style>
 </head>
 <body>
+<!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
+<script src="/config.js"></script>
 <script src="/assets/js/core.js"></script>
 <script>
 (async function () {
@@ -146,10 +148,8 @@
             </div>
             <div class="field" id="resField" style="margin:0">
               <label class="label">清晰度</label>
-              <select class="select" id="selRes">
-                <option value="720p">720p 标准</option>
-                <option value="1080p">1080p 高清</option>
-              </select>
+              <select class="select" id="selRes"></select>
+              <div class="muted" id="resHint" style="font-size:11.5px;margin-top:4px"></div>
             </div>
           </div>
         </div>
@@ -209,7 +209,7 @@
   /* ---------------- 状态 ---------------- */
   const S = {
     kind: 'video',
-    aspect: '9:16', duration: 10, resolution: '720p',
+    aspect: '9:16', duration: 10, resolution: '1080p', resList: [],
     refAsset: null, prices: [], caps: {}, current: null, userIdem: null,
   };
 
@@ -226,23 +226,42 @@
   S.duration = durs.includes(10) ? 10 : durs[0];
   $('#selDuration').value = String(S.duration);
 
+  /* 清晰度：以后端下发的档位为准，默认 1080p，2K 双倍计费 */
+  S.resList = (meta.resolutions && meta.resolutions.length) ? meta.resolutions : [
+    { value: '1080p', label: '1080p 高清', multiplier: 1 },
+    { value: '2k', label: '2K 超清', multiplier: 2 },
+  ];
+  S.resolution = S.resList.some((r) => r.value === meta.default_resolution)
+    ? meta.default_resolution : S.resList[0].value;
+  $('#selRes').innerHTML = S.resList.map((r) =>
+    `<option value="${r.value}">${r.label}</option>`).join('');
+  $('#selRes').value = S.resolution;
+
   const tpls = meta.templates || [];
   $('#chips').innerHTML = tpls.map((t) =>
     `<button class="tpl" data-body="${encodeURIComponent(t.body)}">${t.name}</button>`).join('');
 
   if (!meta.provider_enabled) toast('生成通道未启用，请联系管理员', 'warn');
 
+  function resMultiplier(res) {
+    const hit = (S.resList || []).find((r) => r.value === res);
+    return Number(hit && hit.multiplier) || (res === '2k' ? 2 : 1);
+  }
   function priceFor(dur, res) {
     if (S.kind === 'image') return meta.image_points || 5;
     const hit = S.prices.find((p) => Number(p.duration) === Number(dur) && p.resolution === res);
     if (hit) return hit.points;
-    return Math.max(1, Number(dur) * (meta.points_per_second || 2));
+    return Math.max(1, Number(dur) * (meta.points_per_second || 2) * resMultiplier(res));
   }
   function refreshCost() {
     const pts = priceFor(S.duration, S.resolution);
     $('#costVal').textContent = pts;
     $('#costUnit').textContent = S.kind === 'image' ? '积分 / 张' : '积分 / 条';
     $('#go').textContent = S.kind === 'image' ? '生成图片' : '立即生成';
+    const mult = resMultiplier(S.resolution);
+    $('#resHint').textContent = mult > 1
+      ? `2K 双倍计费（${mult}× 1080p）`
+      : '基准画质';
     return pts;
   }
   refreshCost();
@@ -313,7 +332,7 @@
       S.refAsset = r.asset;
       $('#refArea').innerHTML = `
         <div class="ref-preview">
-          <img src="${r.asset.url}" alt="参考图">
+          <img src="${mediaUrl(r.asset.url)}" alt="参考图">
           <button class="rm" id="rmRef">&times;</button>
         </div>`;
       $('#refTag').style.display = 'inline-flex';
@@ -423,8 +442,8 @@
     stage.innerHTML = `
       <div class="screen">
         ${isImg
-          ? `<img src="${t.media_url}" alt="生成图片">`
-          : `<video src="${t.media_url}" controls playsinline autoplay loop muted></video>`}
+          ? `<img src="${mediaUrl(t.media_url)}" alt="生成图片">`
+          : `<video src="${mediaUrl(t.media_url)}" controls playsinline autoplay loop muted></video>`}
         <div class="result-actions">
           <button class="btn btn-primary" id="dl">下载${isImg ? '图片' : '视频'}</button>
           ${cap ? `<button class="btn" id="cp">复制文案</button>` : ''}
@@ -433,7 +452,7 @@
         ${cap ? `<div class="caption-box">${escapeHtml(cap)}</div>` : ''}
       </div>`;
     $('#dl').onclick = () => downloadUrl(
-      t.media_url, `musestudio-${t.id.slice(0, 8)}${isImg ? '.png' : '.mp4'}`);
+      mediaUrl(t.media_url), `musestudio-${t.id.slice(0, 8)}${isImg ? '.png' : '.mp4'}`);
     if (cap) $('#cp').onclick = () => copyText(cap);
     $('#again').onclick = () => { promptEl.focus(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
     $('#btnAgain').style.display = 'inline-flex';
@@ -493,8 +512,8 @@
         return;
       }
       box.innerHTML = items.map((t) => `
-        <div class="thumb" data-url="${t.media_url}" data-id="${t.id}">
-          <video src="${t.media_url}#t=0.1" preload="metadata" muted playsinline></video>
+        <div class="thumb" data-url="${mediaUrl(t.media_url)}" data-id="${t.id}">
+          <video src="${mediaUrl(t.media_url)}#t=0.1" preload="metadata" muted playsinline></video>
           <div class="ovl">${escapeHtml((t.prompt || '').slice(0, 18))}</div>
         </div>`).join('');
       box.querySelectorAll('.thumb').forEach((el) => {

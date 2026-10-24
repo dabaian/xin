@@ -26,7 +26,7 @@ from .base import GenRequest, ProviderError, StatusResult, SubmitResult, VideoPr
 DEFAULT_CAPS = {
     "durations": [5, 10, 15, 20, 30],
     "aspect_ratios": ["9:16", "16:9", "1:1"],
-    "resolutions": ["720p", "1080p"],
+    "resolutions": ["1080p", "2k"],
     "first_frame": True,
     "last_frame": False,
     "audio": False,
@@ -170,7 +170,7 @@ class MuseProvider(VideoProvider):
                 "model": req.model or "muse-video",
                 "duration": max(3, min(int(req.duration or 10), 30)),
                 "aspect_ratio": req.aspect_ratio or "9:16",
-                "resolution": req.resolution or "720p",
+                "resolution": req.resolution or "1080p",
                 "timeout": req.timeout or CFG.muse_timeout,
             }
             if req.image_url:

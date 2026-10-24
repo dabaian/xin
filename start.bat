@@ -9,7 +9,7 @@ if not exist ".env" (
 )
 
 where python >nul 2>nul || (echo 找不到 python，请先安装 Python 3.10+ & exit /b 1)
-python -c "import fastapi" 2>nul || (
+python -c "import fastapi,uvicorn,segno,PIL,cryptography" 2>nul || (
     echo 正在安装依赖...
     python -m pip install -r backend\requirements.txt
 )

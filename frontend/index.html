@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Muse Studio · 把一句话变成能发的片子</title>
+<title>Viora AI · 把一句话变成能发的片子</title>
 <meta name="description" content="面向短视频与电商的 AI 视频生成工作台：文生视频、图生视频、扫码充值、按条计费。">
-<link rel="icon" href="/assets/favicon.svg">
+<link rel="icon" href="/assets/favicon.png">
 <link rel="stylesheet" href="/assets/css/app.css">
 <style>
 body { background: #fff; }
@@ -38,12 +38,41 @@ body { background: #fff; }
 .vcard { position: relative; border-radius: 16px; overflow: hidden; background: #101319;
   box-shadow: var(--sh-3); aspect-ratio: 9/13; }
 .vcard:nth-child(2) { margin-top: 34px; }
-.vcard video, .vcard .ph { width: 100%; height: 100%; object-fit: cover; }
-.vcard .ph { display: grid; place-items: center; color: rgba(255,255,255,.35); font-size: 12px;
-  background: linear-gradient(160deg, #1B1F27, #2A1E16); text-align: center; padding: 20px; }
-.vcard .lbl { position: absolute; left: 10px; bottom: 10px; right: 10px; color: #fff; font-size: 11.5px;
-  padding: 6px 10px; border-radius: 8px; background: rgba(0,0,0,.45); backdrop-filter: blur(6px);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vcard img { width: 100%; height: 100%; object-fit: cover; display: block;
+  transition: transform .8s cubic-bezier(.22,.61,.36,1); }
+.vcard:hover img { transform: scale(1.045); }
+.vcard::after { content: ''; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,.28) 0%, transparent 32%, transparent 58%, rgba(0,0,0,.62) 100%); }
+.vcard .play { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 2;
+  width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.4);
+  backdrop-filter: blur(6px); color: #fff; }
+.vcard .play svg { width: 17px; height: 17px; margin-left: 2px; }
+.vcard .chip { position: absolute; left: 10px; top: 10px; z-index: 2; font-size: 10.5px; font-weight: 600;
+  color: #fff; padding: 3px 8px; border-radius: 6px; background: rgba(0,0,0,.42);
+  border: 1px solid rgba(255,255,255,.16); backdrop-filter: blur(6px); }
+.vcard .lbl { position: absolute; left: 10px; bottom: 10px; right: 10px; z-index: 2; color: #fff;
+  font-size: 11.5px; padding: 6px 10px; border-radius: 8px; background: rgba(0,0,0,.45);
+  backdrop-filter: blur(6px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 作品墙 */
+.wall { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 1100px) { .wall { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .wall { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.shot { position: relative; margin: 0; border-radius: 14px; overflow: hidden; background: #101319;
+  aspect-ratio: 9/14; box-shadow: var(--sh-2); }
+.shot img { width: 100%; height: 100%; object-fit: cover; display: block;
+  transition: transform .7s cubic-bezier(.22,.61,.36,1); }
+.shot:hover img { transform: scale(1.06); }
+.shot::after { content: ''; position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 45%, rgba(0,0,0,.72) 100%); }
+.shot figcaption { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 9px 10px;
+  color: #fff; font-size: 11.5px; line-height: 1.45; }
+.shot figcaption b { display: block; font-size: 12px; font-weight: 650; margin-bottom: 1px; }
+.shot figcaption span { color: rgba(255,255,255,.62); }
+.shot .tag { position: absolute; right: 8px; top: 8px; z-index: 2; font-size: 10px;
+  padding: 2px 7px; border-radius: 6px; color: #fff; background: rgba(0,0,0,.4);
+  border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(6px); }
 
 .section { padding: 74px 0; }
 .section.alt { background: var(--bg); }
@@ -59,7 +88,9 @@ body { background: #fff; }
 .feat h3 { font-size: 15.5px; margin: 0 0 7px; }
 .feat p { margin: 0; font-size: 13.5px; color: var(--ink-3); line-height: 1.75; }
 
-.price-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; }
+.price-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 980px) { .price-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .price-grid { grid-template-columns: 1fr; } }
 .price { background: #fff; border: 1.5px solid var(--line); border-radius: var(--r-lg); padding: 24px 20px;
   position: relative; transition: all .18s; }
 .price:hover { border-color: var(--brand-line); box-shadow: var(--sh-2); transform: translateY(-2px); }
@@ -98,7 +129,7 @@ body { background: #fff; }
 <header class="nav">
   <div class="wrap nav-in">
     <a class="row" href="/" style="gap:10px;font-weight:700">
-      <div class="brand-mark">M</div><span>Muse Studio</span>
+      <img class="brand-mark" src="/assets/logo-mark.png" alt="Viora AI"><span>Viora AI</span>
     </a>
     <nav class="nav-links">
       <a href="#features">能力</a>
@@ -127,18 +158,22 @@ body { background: #fff; }
       </div>
       <div class="hero-meta">
         <div><b>9:16 / 16:9</b><span>竖屏横屏</span></div>
-        <div><b>~90s</b><span>平均出片</span></div>
-        <div><b>10 积分</b><span>5 秒视频</span></div>
+        <div><b>1080p · 2K</b><span>两档清晰度</span></div>
+        <div><b>10 积分</b><span>5 秒 1080p</span></div>
         <div><b>5 积分</b><span>一张图</span></div>
       </div>
     </div>
     <div class="showcase">
       <div class="vcard">
-        <div class="ph">竖屏 · 9:16<br>商品展示样例</div>
+        <span class="chip">9:16 · 1080p</span>
+        <img src="/assets/showcase/coffee.jpg" alt="咖啡产品广告生成样例" loading="lazy">
+        <span class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.2v13.6L19 12z"/></svg></span>
         <div class="lbl">镜头环绕咖啡杯，暖光，木质桌面</div>
       </div>
       <div class="vcard">
-        <div class="ph">竖屏 · 9:16<br>人物口播样例</div>
+        <span class="chip">9:16 · 2K</span>
+        <img src="/assets/showcase/presenter.jpg" alt="人物口播生成样例" loading="lazy">
+        <span class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.2v13.6L19 12z"/></svg></span>
         <div class="lbl">中景固定机位，自然讲话，柔光</div>
       </div>
     </div>
@@ -183,6 +218,46 @@ body { background: #fff; }
         <p>成片会附带一段可直接用的标题、正文与话题标签，省掉二次创作的时间。</p>
       </div>
     </div>
+
+    <div class="sec-head" style="margin:64px auto 26px">
+      <h2 style="font-size:26px">这些画面都是一句话生成的</h2>
+      <p>没有拍摄、没有模特、没有后期。下面每一张，提示词都写在你看到的那一行里。</p>
+    </div>
+    <div class="wall">
+      <figure class="shot">
+        <span class="tag">9:16</span>
+        <img src="/assets/showcase/coffee.jpg" alt="咖啡产品广告" loading="lazy">
+        <figcaption><b>产品广告</b><span>镜头环绕咖啡杯，暖光，木质桌面</span></figcaption>
+      </figure>
+      <figure class="shot">
+        <span class="tag">9:16</span>
+        <img src="/assets/showcase/presenter.jpg" alt="人物口播" loading="lazy">
+        <figcaption><b>人物口播</b><span>中景固定机位，自然讲话，柔光</span></figcaption>
+      </figure>
+      <figure class="shot">
+        <span class="tag">2K</span>
+        <img src="/assets/showcase/city.jpg" alt="城市夜景空镜" loading="lazy">
+        <figcaption><b>风景空镜</b><span>无人机前推，蓝调时刻，霓虹与车流</span></figcaption>
+      </figure>
+      <figure class="shot">
+        <span class="tag">9:16</span>
+        <img src="/assets/showcase/cosmetics.jpg" alt="美妆产品特写" loading="lazy">
+        <figcaption><b>美妆特写</b><span>精华瓶置于湿石面，侧逆光，水滴反光</span></figcaption>
+      </figure>
+      <figure class="shot">
+        <span class="tag">9:16</span>
+        <img src="/assets/showcase/sneaker.jpg" alt="运动鞋广告" loading="lazy">
+        <figcaption><b>鞋服带货</b><span>跑鞋悬浮，水花飞溅，橙黑渐变背景</span></figcaption>
+      </figure>
+      <figure class="shot">
+        <span class="tag">2K</span>
+        <img src="/assets/showcase/ramen.jpg" alt="美食特写" loading="lazy">
+        <figcaption><b>餐饮探店</b><span>拉面特写，筷子挑起，热气升腾</span></figcaption>
+      </figure>
+    </div>
+    <div class="center" style="margin-top:26px">
+      <a class="btn btn-lg" href="/register">用你的第一句话试试 →</a>
+    </div>
   </div>
 </section>
 
@@ -216,7 +291,8 @@ body { background: #fff; }
   <div class="wrap">
     <div class="sec-head">
       <h2>1 元 = 10 积分，按条计费</h2>
-      <p>图片 5 积分／张，5 秒视频 10 积分，10 秒视频 20 积分。积分长期有效，生成失败不计费。</p>
+      <p>图片 5 积分／张。视频默认 1080p：5 秒 10 积分、10 秒 20 积分；<b>2K 超清为 1080p 的两倍积分</b>。<br>
+        充值单笔 <b>满 200 元赠 10%</b>、<b>满 1000 元赠 20%</b>。积分长期有效，生成失败不计费。</p>
     </div>
     <div class="price-grid" id="prices">
       <div class="skel" style="height:190px"></div>
@@ -244,7 +320,7 @@ body { background: #fff; }
 
 <footer class="foot">
   <div class="wrap in">
-    <div>© 2026 Muse Studio · AI 生成内容请遵守各平台规范</div>
+    <div>© 2026 Viora AI · AI 生成内容请遵守各平台规范</div>
     <div class="row" style="gap:18px">
       <a href="/download">桌面客户端</a>
       <a href="/login">登录</a>
@@ -253,6 +329,8 @@ body { background: #fff; }
   </div>
 </footer>
 
+<!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
+<script src="/config.js"></script>
 <script src="/assets/js/core.js"></script>
 <script>
 (async function () {

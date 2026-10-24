@@ -4,7 +4,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from .. import db, ledger
-from ..config import CFG
+from ..config import (BONUS_TIERS, CFG, CUSTOM_MAX_YUAN, CUSTOM_MIN_YUAN,
+                      custom_package)
 from ..deps import current_user, optional_user
 
 router = APIRouter(prefix="/api/wallet", tags=["wallet"])
@@ -62,5 +63,35 @@ def packages(user=Depends(optional_user)):
             "unit": "%.3f" % (price / 100.0 / max(1, points + bonus)),
             "tag": p.get("tag") or "",
         })
-    return {"ok": True, "items": items, "alipay_ready": CFG.alipay_ready,
-            "mock": CFG.alipay_mock}
+    from ..payments import gateway
+
+    active = gateway.resolve_code()
+    adapter = gateway.get(active)
+    return {"ok": True, "items": items,
+            "alipay_ready": CFG.alipay_ready,
+            "mock": bool(adapter and adapter.is_mock()),
+            "channel": {
+                "code": active,
+                "name": adapter.name if adapter else "",
+                "mock": bool(adapter and adapter.is_mock()),
+                "ready": bool(adapter and adapter.ready()),
+            },
+            "channels": gateway.available(),
+            "custom": {"min": CUSTOM_MIN_YUAN, "max": CUSTOM_MAX_YUAN,
+                       "tiers": [{"label": t["label"],
+                                  "min_yuan": t["min_minor"] // 100,
+                                  "rate": round(100 * t["num"] / t["den"])}
+                                 for t in BONUS_TIERS]}}
+
+
+@router.get("/custom-quote")
+def custom_quote(yuan: float = 0, user=Depends(optional_user)):
+    """自定义金额试算：给前端实时显示「到账多少积分、送多少」。"""
+    try:
+        pkg = custom_package(yuan)
+    except ValueError as exc:
+        return {"ok": False, "error": str(exc), "min": CUSTOM_MIN_YUAN,
+                "max": CUSTOM_MAX_YUAN}
+    return {"ok": True, "yuan": pkg["price_yuan"], "points": pkg["points"],
+            "bonus": pkg["bonus"], "total": pkg["total_points"],
+            "bonus_label": pkg["bonus_label"]}

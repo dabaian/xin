@@ -1,16 +1,18 @@
-"""Muse Studio · 后端入口。
+"""Viora AI · 后端入口。
 
 单进程 FastAPI + SQLite(WAL) + 内置任务调度器，一台服务器一条命令就能跑起来。
 """
 from __future__ import annotations
 
 import logging
+import json
 import os
 import time
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -29,6 +31,23 @@ app = FastAPI(title=CFG.app_name + " API", docs_url="/api/docs",
               openapi_url="/api/openapi.json", redoc_url=None)
 
 # ---------------------------------------------------------------- 中间件
+# 前端与后端分开部署（前端静态站/CDN + 后端这台机器）时，浏览器会发跨域请求。
+# 在 .env 里配 CORS_ORIGINS=https://你的前端域名 就会自动放开这几个来源。
+# 注意：带 Cookie 的跨域请求不能用 "*"，必须写具体域名。
+_CORS = CFG.cors_list
+if _CORS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"] if _CORS == ["*"] else _CORS,
+        allow_credentials=False if _CORS == ["*"] else True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["X-Process-Time"],
+        max_age=600,
+    )
+    log.info("已开启跨域，允许来源：%s", _CORS)
+
+
 @app.middleware("http")
 async def guard(request: Request, call_next):
     path = request.url.path
@@ -68,6 +87,35 @@ for r in (auth.router, task_router.router, assets.router, wallet.router,
 @app.get("/healthz")
 def healthz():
     return {"ok": True, "app": CFG.app_name, "env": CFG.app_env}
+
+
+@app.get("/config.js")
+def runtime_config():
+    """前端运行时配置（前后端分离 / 换后端地址的唯一开关）。
+
+    页面里 <script src="/config.js"></script> 放在 core.js 之前即可。
+    前端完全独立部署（不走本服务）时，在静态站根目录放一个同样内容的
+    config.js 文件就能对接到任意后端，不需要重新打包前端。
+    """
+    from .payments import gateway
+
+    active = gateway.resolve_code()
+    data = {
+        "api_base": CFG.api_base,
+        "app_name": CFG.app_name,
+        "app_env": CFG.app_env,
+        "version": CFG.desktop_version,
+        "time": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "pay": {"active": active, "mock": active == "mock"},
+        "features": {
+            "captcha": bool(CFG.captcha_enabled),
+            "email_code_required": bool(CFG.email_code_required),
+            "register": bool(CFG.allow_register),
+        },
+    }
+    body = "window.VIORA_CONFIG = " + json.dumps(data, ensure_ascii=False) + ";\n"
+    return Response(body, media_type="application/javascript",
+                    headers={"Cache-Control": "no-store, must-revalidate"})
 
 
 @app.get("/readyz")
@@ -139,5 +187,12 @@ def _startup():
              CFG.data_dir)
     if not CFG.muse_key:
         log.warning("MUSE_KEY 未配置，生成任务会失败（请在 .env 填写号池密钥）")
-    if not CFG.alipay_ready:
-        log.warning("支付宝参数未配置，充值通道不可用")
+    from .payments import gateway
+
+    active = gateway.resolve_code()
+    if not active:
+        log.warning("没有任何可用支付通道，充值不可用（配置 ALIPAY_* 或临时开 ALIPAY_MOCK=1）")
+    elif active == "mock":
+        log.warning("当前是【模拟支付】通道，不会真收钱，上线前务必关掉 ALIPAY_MOCK")
+    else:
+        log.info("支付通道：%s", gateway.get(active).name)

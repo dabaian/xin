@@ -22,9 +22,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 
 from .. import db, ledger
-from ..config import CFG
+from ..config import CFG, custom_package
 from ..deps import client_ip, current_user
-from ..payments import alipay, qr
+from ..payments import gateway, qr
 
 log = logging.getLogger("studio.payment")
 
@@ -63,24 +63,41 @@ def _pkg(package_id: str) -> dict:
     raise HTTPException(400, "套餐不存在")
 
 
+def _custom_pkg(raw) -> dict:
+    """把「自定义金额（元）」换算成内部套餐结构，赠送按统一规则算。"""
+    try:
+        return custom_package(raw)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
 # ------------------------------------------------------------------ 下单
 @router.post("/checkout")
 def checkout(payload: dict, request: Request, user=Depends(current_user),
              conn=Depends(db.get_db)):
+    """下单：package_id 走预设套餐；custom_yuan 走自定义金额（不得低于 10 元）。"""
     package_id = str(payload.get("package_id") or "").strip()
-    pkg = _pkg(package_id)
+    custom = payload.get("custom_yuan")
+    if custom not in (None, ""):
+        pkg = _custom_pkg(custom)
+        package_id = "custom"
+    else:
+        pkg = _pkg(package_id)
     if pkg["price_minor"] <= 0:
         raise HTTPException(400, "套餐价格异常，请联系客服")
-    if not CFG.alipay_ready and not CFG.alipay_mock:
-        raise HTTPException(503, "充值通道尚未配置（缺少支付宝参数），请联系客服")
 
-    # 复用未支付的同套餐订单，避免用户连点生成一堆二维码
+    gw = gateway.current()
+    if gw is None:
+        raise HTTPException(503, "充值通道尚未配置（缺少支付商户参数），请联系客服")
+    mock = gw.is_mock()
+
+    # 复用未支付的同金额订单，避免用户连点生成一堆二维码
     fresh = conn.execute(
-        "SELECT * FROM payment_orders WHERE user_id=? AND package_id=? AND status IN "
-        "('CREATED','PENDING') AND expires_at > ? ORDER BY id DESC LIMIT 1",
-        (user["id"], package_id, db.now())).fetchone()
+        "SELECT * FROM payment_orders WHERE user_id=? AND package_id=? AND amount_minor=? "
+        "AND status IN ('CREATED','PENDING') AND expires_at > ? ORDER BY id DESC LIMIT 1",
+        (user["id"], package_id, pkg["price_minor"], db.now())).fetchone()
     if fresh and fresh["qr_code"]:
-        return _checkout_payload(fresh, pkg)
+        return _checkout_payload(fresh, pkg, mock)
 
     order_no = _order_no()
     points = pkg["points"] + pkg["bonus"]
@@ -89,45 +106,35 @@ def checkout(payload: dict, request: Request, user=Depends(current_user),
     conn.execute(
         "INSERT INTO payment_orders(order_no, user_id, provider, package_id, package_name, "
         "amount_minor, currency, points, status, channel, subject, created_at, expires_at) "
-        "VALUES(?,?,'alipay',?,?,?,'CNY',?,'CREATED','precreate',?,?,?)",
-        (order_no, user["id"], package_id, pkg["name"], pkg["price_minor"], points,
+        "VALUES(?,?,?,?,?,?,'CNY',?,'CREATED','precreate',?,?,?)",
+        (order_no, user["id"], gw.code, package_id, pkg["name"], pkg["price_minor"], points,
          subject, db.now(), db.now_plus(minutes)))
     conn.commit()
 
-    if CFG.alipay_mock:
-        # 模拟模式：不调支付宝网关，二维码里放一个可识别的标记
-        qr_code = "https://qr.alipay.com/mock/" + order_no
-        conn.execute("UPDATE payment_orders SET status='PENDING', qr_code=? WHERE order_no=?",
-                     (qr_code, order_no))
-        conn.commit()
-        row = conn.execute("SELECT * FROM payment_orders WHERE order_no=?",
-                           (order_no,)).fetchone()
-        out = _checkout_payload(row, pkg)
-        out["mock"] = True
-        return out
-
     try:
-        qr_code = alipay.precreate(order_no, pkg["price_minor"], subject,
-                                   "%dm" % minutes)
-    except alipay.AlipayError as exc:
+        qr_code = gw.create(order_no, pkg["price_minor"], subject, minutes)
+    except gateway.GatewayError as exc:
         conn.execute("UPDATE payment_orders SET status='FAILED' WHERE order_no=?", (order_no,))
         db.audit(conn, user["id"], "payment.precreate_failed", "order", order_no,
-                 after={"error": exc.message}, ip=client_ip(request))
+                 after={"error": exc.message, "channel": gw.code}, ip=client_ip(request))
         conn.commit()
-        raise HTTPException(502, "创建支付宝二维码失败：%s" % exc.message) from exc
+        raise HTTPException(502, exc.message) from exc
 
     conn.execute("UPDATE payment_orders SET status='PENDING', qr_code=? WHERE order_no=?",
                  (qr_code, order_no))
     conn.commit()
     row = conn.execute("SELECT * FROM payment_orders WHERE order_no=?", (order_no,)).fetchone()
-    return _checkout_payload(row, pkg)
+    return _checkout_payload(row, pkg, mock)
 
 
-def _checkout_payload(row, pkg: dict) -> dict:
+def _checkout_payload(row, pkg: dict, mock: bool = False) -> dict:
     qr_text = row["qr_code"] or ""
+    adapter = gateway.get(row["provider"])
     return {
-        "mock": CFG.alipay_mock,
+        "mock": mock,
         "ok": True,
+        "channel": row["provider"],
+        "channel_name": adapter.name if adapter else "",
         "order": {
             "order_no": row["order_no"],
             "amount_minor": row["amount_minor"],
@@ -161,18 +168,20 @@ def order_status(order_no: str, user=Depends(current_user), conn=Depends(db.get_
                        (order_no, user["id"])).fetchone()
     if not row:
         raise HTTPException(404, "订单不存在")
-    # 未支付且未过期 → 主动查一次支付宝（通知丢失也能自动到账）
+    # 未支付且未过期 → 主动查一次支付渠道（通知丢失也能自动到账）
     if row["status"] in ("CREATED", "PENDING") and row["expires_at"] > db.now():
-        try:
-            info = alipay.query(order_no)
-            if _apply_trade(conn, row, info, "query"):
-                conn.commit()
-                row = conn.execute("SELECT * FROM payment_orders WHERE order_no=?",
-                                   (order_no,)).fetchone()
-        except alipay.AlipayError as exc:
-            log.info("查单失败 %s: %s", order_no, exc.message)
-        except Exception as exc:  # noqa: BLE001
-            log.warning("查单异常 %s: %s", order_no, exc)
+        gw = gateway.get(row["provider"]) or gateway.current()
+        if gw is not None and not gw.is_mock():
+            try:
+                info = gw.query(order_no)
+                if _apply_trade(conn, row, info, "query"):
+                    conn.commit()
+                    row = conn.execute("SELECT * FROM payment_orders WHERE order_no=?",
+                                       (order_no,)).fetchone()
+            except gateway.GatewayError as exc:
+                log.info("查单失败 %s: %s", order_no, exc.message)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("查单异常 %s: %s", order_no, exc)
     # 过期处理
     if row["status"] in ("CREATED", "PENDING") and row["expires_at"] <= db.now():
         conn.execute("UPDATE payment_orders SET status='EXPIRED' WHERE order_no=? AND "
@@ -198,12 +207,13 @@ def _apply_trade(conn, order, info: dict, source: str) -> bool:
     if status not in ("TRADE_SUCCESS", "TRADE_FINISHED"):
         return False
     trade_no = str(info.get("trade_no") or "")
-    event_id = "alipay:%s:%s" % (trade_no or order["order_no"], status)
+    provider = str(order["provider"] or "alipay")
+    event_id = "%s:%s:%s" % (provider, trade_no or order["order_no"], status)
     try:
         conn.execute(
             "INSERT INTO payment_events(provider, event_id, order_no, payload_hash, raw, "
-            "processed_at) VALUES('alipay',?,?,?,?,?)",
-            (event_id, order["order_no"],
+            "processed_at) VALUES(?,?,?,?,?,?)",
+            (provider, event_id, order["order_no"],
              hashlib.sha256(json.dumps(info, ensure_ascii=False, sort_keys=True)
                             .encode()).hexdigest(),
              json.dumps(info, ensure_ascii=False)[:4000], db.now()))
@@ -245,11 +255,27 @@ def _apply_trade(conn, order, info: dict, source: str) -> bool:
 # ------------------------------------------------------------------ 异步通知
 @router.post("/notify")
 async def notify(request: Request, conn=Depends(db.get_db)):
+    """异步通知入口（所有通道共用这个地址，按各自适配器验签）。
+
+    通道接入约定：适配器 verify_notify(form) 返回 True 才算验签通过，
+    且必须保证「同一条通知重放多次只入账一次」（靠 payment_events 唯一约束）。
+    """
     form = {k: v for k, v in (await request.form()).items()}
     if not form:
         return PlainTextResponse("fail")
-    if not alipay.verify_notify(form):
-        log.warning("支付宝通知验签失败：%s", form.get("out_trade_no"))
+
+    hit = None
+    for code, adapter in gateway.REGISTRY.items():
+        if adapter.is_mock():
+            continue
+        try:
+            if adapter.verify_notify(form):
+                hit = adapter
+                break
+        except Exception as exc:  # noqa: BLE001
+            log.warning("通道 %s 验签异常：%s", code, exc)
+    if hit is None:
+        log.warning("支付通知验签失败：%s", form.get("out_trade_no"))
         return PlainTextResponse("fail")
     if CFG.alipay_app_id and form.get("app_id") and form["app_id"] != CFG.alipay_app_id:
         log.warning("app_id 不匹配：%s", form.get("app_id"))
@@ -259,7 +285,7 @@ async def notify(request: Request, conn=Depends(db.get_db)):
     row = conn.execute("SELECT * FROM payment_orders WHERE order_no=?", (order_no,)).fetchone()
     if not row:
         log.warning("通知里的订单不存在：%s", order_no)
-        return PlainTextResponse("success")  # 让支付宝别再重试
+        return PlainTextResponse("success")  # 让支付平台别再重试
     info = {
         "trade_status": form.get("trade_status"),
         "trade_no": form.get("trade_no"),
@@ -274,8 +300,8 @@ async def notify(request: Request, conn=Depends(db.get_db)):
 
 @router.post("/mock-pay/{order_no}")
 def mock_pay(order_no: str, user=Depends(current_user), conn=Depends(db.get_db)):
-    """仅模拟模式可用：把订单标记为已支付，用来验收整条充值链路。"""
-    if not CFG.alipay_mock:
+    """仅模拟通道可用：把订单标记为已支付，用来验收整条充值链路。"""
+    if not CFG.alipay_mock and not (gateway.current() and gateway.current().is_mock()):
         raise HTTPException(404, "接口不存在")
     row = conn.execute("SELECT * FROM payment_orders WHERE order_no=? AND user_id=?",
                        (order_no, user["id"])).fetchone()
@@ -291,25 +317,32 @@ def mock_pay(order_no: str, user=Depends(current_user), conn=Depends(db.get_db))
 # ------------------------------------------------------------------ 查询类
 @router.get("/methods")
 def methods(user=Depends(current_user)):
+    """可选支付通道（前端据此渲染支付方式，接新通道不用改前端）。"""
+    return {"ok": True, "active": gateway.resolve_code(),
+            "methods": gateway.available()}
+
+
+@router.get("/channels")
+def channels(user=Depends(current_user)):
+    """通道状态总览：给后台排查用，不含任何密钥。"""
+    active = gateway.current()
     return {
         "ok": True,
-        "methods": [{
-            "id": "alipay_qr",
-            "name": "支付宝扫码",
-            "desc": "用支付宝 App 扫一扫，实时到账",
-            "enabled": CFG.alipay_ready,
-            "icon": "alipay",
-        }],
+        "active": gateway.resolve_code(),
+        "configured_env": CFG.payment_channel,
+        "alipay_ready": CFG.alipay_ready,
+        "mock": bool(active and active.is_mock()),
+        "channels": gateway.available(),
     }
 
 
 @router.get("/selfcheck")
 def selfcheck(user=Depends(current_user)):
-    info = alipay.selfcheck()
-    info["mock"] = CFG.alipay_mock
-    info["notify_url"] = CFG.alipay_notify_url
-    info["gateway"] = CFG.alipay_gateway
-    return {"ok": True, "alipay": info}
+    gw = gateway.current()
+    if gw is None:
+        return {"ok": False, "active": "", "error": "没有任何可用的支付通道，请检查 ALIPAY_* 配置"}
+    return {"ok": True, "active": gw.code, "channel": gw.name,
+            "info": gw.selfcheck(), "mock": gw.is_mock()}
 
 
 # ------------------------------------------------------------------ 后台清道夫
@@ -338,7 +371,8 @@ class PendingSweeper:
             self._stop.wait(45)
 
     def sweep(self):
-        if not CFG.alipay_ready:
+        active = gateway.current()
+        if active is None or active.is_mock():
             return
         conn = db.connect()
         try:
@@ -348,9 +382,12 @@ class PendingSweeper:
                 "AND created_at > ? AND expires_at > ? ORDER BY id DESC LIMIT 20",
                 (db.now()[:11] + "00:00:00", db.now())).fetchall()
             for row in rows:
+                adapter = gateway.get(row["provider"]) or gateway.current()
+                if adapter is None or adapter.is_mock():
+                    continue
                 try:
-                    info = alipay.query(row["order_no"])
-                except alipay.AlipayError:
+                    info = adapter.query(row["order_no"])
+                except gateway.GatewayError:
                     continue
                 if _apply_trade(conn, row, info, "sweeper"):
                     log.info("扫单补记到账 %s", row["order_no"])

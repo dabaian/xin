@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # ==========================================================================
-#  Muse Studio 一键部署（Ubuntu 20.04+ / Debian 11+ / CentOS Stream 9）
+#  Viora AI 一键部署（Ubuntu 20.04+ / Debian 11+ / CentOS Stream 9）
 #
 #  用法：
 #    sudo bash deploy/install.sh your-domain.com
 #
 #  做的事：
-#    1. 建运行用户 + 目录（/opt/muse-studio）
+#    1. 建运行用户 + 目录（/opt/viora-ai）
 #    2. Python venv + 依赖
 #    3. systemd 服务（127.0.0.1:8080）
 #    4. Nginx 反代（含 SSE / 大文件 / 长任务超时）
@@ -17,7 +17,7 @@ set -euo pipefail
 
 DOMAIN="${1:-}"
 APP_USER="muse"
-APP_DIR="/opt/muse-studio"
+APP_DIR="/opt/viora-ai"
 SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PY_BIN="${PY_BIN:-python3}"
 
@@ -63,7 +63,7 @@ cat > "$APP_DIR/secrets/README.md" <<'SEC'
 | alipay_private_key.pem | 应用私钥 | 自己在开放平台工具生成，只有你有 |
 | alipay_public_key.pem  | 支付宝公钥 | 从开放平台「接口加签方式」页面复制，不是应用公钥 |
 
-    chmod 600 /opt/muse-studio/secrets/*.pem
+    chmod 600 /opt/viora-ai/secrets/*.pem
 
 然后 .env 里填 ALIPAY_APP_ID / ALIPAY_PRIVATE_KEY_PATH / ALIPAY_PUBLIC_KEY_PATH，
 并把 ALIPAY_MOCK 改成 0。填成「应用公钥」的症状是：付了钱、余额不加。
@@ -114,9 +114,9 @@ echo "==> Python 依赖安装完成"
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 
 # ---------------------------------------------------------------- systemd
-cat > /etc/systemd/system/muse-studio.service <<UNIT
+cat > /etc/systemd/system/viora-ai.service <<UNIT
 [Unit]
-Description=Muse Studio (AI Video Platform)
+Description=Viora AI (AI Video Platform)
 After=network-online.target
 Wants=network-online.target
 
@@ -145,11 +145,11 @@ WantedBy=multi-user.target
 UNIT
 
 systemctl daemon-reload
-systemctl enable --now muse-studio
-echo "==> systemd 服务已启动：systemctl status muse-studio"
+systemctl enable --now viora-ai
+echo "==> systemd 服务已启动：systemctl status viora-ai"
 
 # ---------------------------------------------------------------- nginx
-cat > /etc/nginx/conf.d/muse-studio.conf <<NGINX
+cat > /etc/nginx/conf.d/viora-ai.conf <<NGINX
 server {
     listen 80;
     server_name $DOMAIN;
@@ -158,8 +158,8 @@ server {
     proxy_read_timeout 900s;
     proxy_send_timeout 900s;
 
-    access_log /var/log/nginx/muse-studio.access.log;
-    error_log  /var/log/nginx/muse-studio.error.log;
+    access_log /var/log/nginx/viora-ai.access.log;
+    error_log  /var/log/nginx/viora-ai.error.log;
 
     gzip on;
     gzip_types text/css application/javascript application/json image/svg+xml;
@@ -220,7 +220,7 @@ cat <<TIP
  管理员      : admin / $ADMIN_PWD
  配置文件    : $APP_DIR/.env
  日志        : $APP_DIR/logs/app.log
- 重启        : systemctl restart muse-studio
+ 重启        : systemctl restart viora-ai
  自检        : bash $APP_DIR/deploy/verify.sh $DOMAIN
 
  还需要你补齐 3 件事（改完记得 restart）：

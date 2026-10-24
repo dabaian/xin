@@ -6,13 +6,24 @@
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 import threading
 from datetime import datetime, timedelta, timezone
 
-from .config import CFG
+from .config import CFG, RESOLUTIONS, RESOLUTION_VALUES
 
 _LOCK = threading.Lock()
+logger = logging.getLogger("muse.db")
+
+# 连接池：SQLite 的 WAL 靠 -shm 文件做共享内存，如果所有连接同时关闭，
+# SQLite 会 checkpoint 并删掉 -wal/-shm；此时别的线程正在打开连接，就会拿到
+# 只读句柄，写出 `attempt to write a readonly database`（随机 500）。
+# 两个对策：① 常驻一个 keepalive 连接，-shm 永不消失；
+#          ② 请求用完的连接放回池子复用，不再每次都开关。
+_POOL: list[sqlite3.Connection] = []
+_POOL_MAX = 12
+_KEEPALIVE: sqlite3.Connection | None = None
 
 SCHEMA = """
 PRAGMA foreign_keys = ON;
@@ -46,6 +57,29 @@ CREATE TABLE IF NOT EXISTS device_tokens (
     created_at TEXT NOT NULL,
     last_seen  TEXT NOT NULL DEFAULT ''
 );
+
+-- 注册图形验证码：只存答案哈希，一次性使用
+CREATE TABLE IF NOT EXISTS captchas (
+    id         TEXT PRIMARY KEY,
+    code_hash  TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_captchas_exp ON captchas(expires_at);
+
+-- 邮箱验证码：注册 / 验证码登录，同样只存哈希
+CREATE TABLE IF NOT EXISTS email_codes (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    email      TEXT NOT NULL,
+    purpose    TEXT NOT NULL DEFAULT 'register',   -- register / login
+    code_hash  TEXT NOT NULL,
+    ip         TEXT NOT NULL DEFAULT '',
+    attempts   INTEGER NOT NULL DEFAULT 0,
+    used       INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_email_codes ON email_codes(email, purpose, created_at);
 
 CREATE TABLE IF NOT EXISTS wallets (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -188,7 +222,7 @@ CREATE TABLE IF NOT EXISTS pricing_rules (
     provider_code  TEXT NOT NULL DEFAULT 'muse',
     model          TEXT NOT NULL DEFAULT 'muse-video',
     duration       INTEGER NOT NULL DEFAULT 10,
-    resolution     TEXT NOT NULL DEFAULT '720p',
+    resolution     TEXT NOT NULL DEFAULT '1080p',
     points         INTEGER NOT NULL,
     cost_minor     INTEGER NOT NULL DEFAULT 0,
     effective_at   TEXT NOT NULL,
@@ -238,22 +272,55 @@ def utc_iso() -> str:
 
 
 def connect() -> sqlite3.Connection:
+    """新开一个连接（不走池，调用方自己负责 close）。"""
     CFG.ensure_dirs()
     conn = sqlite3.connect(CFG.db_path, timeout=20, check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA busy_timeout=8000")
+    conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
 
+def acquire() -> sqlite3.Connection:
+    """从池里取一个连接；池空则新建。"""
+    with _LOCK:
+        while _POOL:
+            conn = _POOL.pop()
+            try:
+                conn.execute("SELECT 1")
+                return conn
+            except sqlite3.Error:      # 连接坏了就丢掉换一个
+                try:
+                    conn.close()
+                except sqlite3.Error:
+                    pass
+    return connect()
+
+
+def release(conn: sqlite3.Connection) -> None:
+    """归还连接：先回滚未提交事务，避免污染下一个请求。"""
+    try:
+        if conn.in_transaction:
+            conn.rollback()
+    except sqlite3.Error:
+        pass
+    with _LOCK:
+        if len(_POOL) < _POOL_MAX:
+            _POOL.append(conn)
+            return
+    try:
+        conn.close()
+    except sqlite3.Error:
+        pass
+
+
 def get_db():
-    conn = connect()
+    conn = acquire()
     try:
         yield conn
     finally:
-        conn.close()
+        release(conn)
 
 
 # ------------------------------------------------------------------ 查询助手
@@ -270,6 +337,63 @@ def rows_to_dicts(rows) -> list[dict]:
 
 
 # ------------------------------------------------------------------ 初始化
+def _upgrade_resolutions(conn: sqlite3.Connection) -> None:
+    """清晰度档位升级（幂等，每次启动都会跑，但只在需要时改数据）。
+
+    - 老库只有 720p：把该档位原地改名成 1080p 基线价，不涨价；
+    - 同时补出 2K 档，价格按 1080p 的倍率算；
+    - 已经存在的 1080p / 2K 一律不动，管理员在后台改过的价不会被覆盖。
+    """
+    base = RESOLUTION_VALUES[0]
+    rows = conn.execute(
+        "SELECT id, duration, resolution, points FROM pricing_rules "
+        "WHERE provider_code='muse' AND model='muse-video' AND active=1").fetchall()
+
+    has_base = {int(r["duration"]) for r in rows if r["resolution"] == base}
+    for r in rows:
+        if str(r["resolution"]).strip().lower() not in ("720p", "720"):
+            continue
+        dur = int(r["duration"])
+        if dur in has_base:      # 同时长已经有 1080p，这条只是历史残留
+            conn.execute("DELETE FROM pricing_rules WHERE id=?", (r["id"],))
+        else:
+            conn.execute("UPDATE pricing_rules SET resolution=? WHERE id=?", (base, r["id"]))
+            has_base.add(dur)
+
+    rows = conn.execute(
+        "SELECT duration, resolution, points FROM pricing_rules "
+        "WHERE provider_code='muse' AND model='muse-video' AND active=1").fetchall()
+    exists = {(int(r["duration"]), r["resolution"]) for r in rows}
+    for r in rows:
+        if r["resolution"] != base:
+            continue
+        dur, pts = int(r["duration"]), int(r["points"])
+        for spec in RESOLUTIONS[1:]:
+            key = (dur, spec["value"])
+            if key in exists:
+                continue
+            conn.execute(
+                "INSERT INTO pricing_rules(provider_code, model, duration, resolution, points, "
+                "effective_at, active) VALUES('muse','muse-video',?,?,?,?,1)",
+                (dur, spec["value"], max(1, pts * int(spec["multiplier"])), now()))
+            exists.add(key)
+
+
+def _sync_caps(conn: sqlite3.Connection) -> None:
+    """能力里的清晰度档位跟随配置，避免老库还停在 720p/1080p。"""
+    prow = q1(conn, "SELECT id, capabilities_json FROM model_providers WHERE code='muse'")
+    if not prow:
+        return
+    try:
+        caps = json.loads(prow["capabilities_json"] or "{}")
+    except (json.JSONDecodeError, TypeError):
+        caps = {}
+    if caps.get("resolutions") != RESOLUTION_VALUES:
+        caps["resolutions"] = list(RESOLUTION_VALUES)
+        conn.execute("UPDATE model_providers SET capabilities_json=? WHERE id=?",
+                     (json.dumps(caps, ensure_ascii=False), prow["id"]))
+
+
 def _seed(conn: sqlite3.Connection) -> None:
     from .config import CFG as _cfg
     from .security import hash_password
@@ -288,7 +412,7 @@ def _seed(conn: sqlite3.Connection) -> None:
         caps = {
             "durations": [5, 10, 15, 20, 30],
             "aspect_ratios": ["9:16", "16:9", "1:1"],
-            "resolutions": ["720p", "1080p"],
+            "resolutions": RESOLUTION_VALUES,
             "first_frame": True,
             "last_frame": False,
             "audio": False,
@@ -303,16 +427,21 @@ def _seed(conn: sqlite3.Connection) -> None:
              "复用现有 muse2api 上号链路，形如 OpenAI 的 HTTP 契约"))
 
     if not q1(conn, "SELECT id FROM pricing_rules WHERE model = 'muse-video' LIMIT 1"):
-        # 定价：2 积分/秒 → 5 秒 10、10 秒 20、15 秒 30、20 秒 40、30 秒 60
+        # 定价：1080p 2 积分/秒 → 5 秒 10、10 秒 20、15 秒 30、20 秒 40、30 秒 60
+        # 2K 按倍率翻倍 → 5 秒 20、10 秒 40 …
         for dur in (5, 10, 15, 20, 30):
-            conn.execute(
-                "INSERT INTO pricing_rules(provider_code, model, duration, resolution, points, "
-                "effective_at, active) VALUES('muse','muse-video',?,?,?,?,1)",
-                (dur, "720p", dur * 2, now()))
+            for res in RESOLUTIONS:
+                conn.execute(
+                    "INSERT INTO pricing_rules(provider_code, model, duration, resolution, points, "
+                    "effective_at, active) VALUES('muse','muse-video',?,?,?,?,1)",
+                    (dur, res["value"], dur * 2 * res["multiplier"], now()))
         # 图片：5 积分/张
         conn.execute(
             "INSERT INTO pricing_rules(provider_code, model, duration, resolution, points, "
             "effective_at, active) VALUES('muse','muse-image',0,'auto',5,?,1)", (now(),))
+
+    _upgrade_resolutions(conn)
+    _sync_caps(conn)
 
     if not q1(conn, "SELECT id FROM prompt_templates LIMIT 1"):
         _tpls = [
@@ -332,6 +461,16 @@ def init_db() -> None:
     with _LOCK:
         conn = connect()
         try:
+            # 日志模式只在启动时设一次；WAL 会持久写在库文件头里，
+            # 之后的连接不用再设（并发设置会导致连接变只读，见 connect() 注释）
+            try:
+                mode = conn.execute("PRAGMA journal_mode=WAL").fetchone()[0]
+                if str(mode).lower() != "wal":
+                    logger.warning("journal_mode 未能切到 WAL（当前 %s），"
+                                   "并发写入会比较慢，但功能正常", mode)
+            except sqlite3.OperationalError as exc:
+                logger.warning("设置 WAL 失败：%s（不影响使用）", exc)
+
             conn.executescript(SCHEMA)
             # 轻量迁移：老库补列
             def _cols(table: str) -> set[str]:
@@ -347,8 +486,15 @@ def init_db() -> None:
             _add("payment_orders", "buyer_id", "TEXT NOT NULL DEFAULT ''")
             _seed(conn)
             conn.commit()
+            # 这条连接常驻不关：只要它还在，WAL 的 -shm 文件就不会被删除，
+            # 并发打开的新连接也不会退化成只读
+            global _KEEPALIVE
+            if _KEEPALIVE is None:
+                _KEEPALIVE = conn
+                conn = None
         finally:
-            conn.close()
+            if conn is not None:
+                conn.close()
 
 
 # ------------------------------------------------------------------ 审计

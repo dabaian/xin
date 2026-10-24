@@ -6,7 +6,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from .. import db, ledger, signing, tasks as engine
-from ..config import CFG
+from ..config import CFG, RESOLUTIONS, normalize_resolution
 from ..deps import admin_only, client_ip, current_user
 from ..payments import alipay
 from ..providers.muse import provider_from_row
@@ -313,7 +313,7 @@ def upsert_pricing(payload: dict, request: Request, admin=Depends(admin_only),
         raise HTTPException(400, "时长和积分必须是整数") from None
     if duration <= 0 or points <= 0:
         raise HTTPException(400, "时长和积分必须大于 0")
-    resolution = str(payload.get("resolution") or "720p")
+    resolution = normalize_resolution(payload.get("resolution"))
     conn.execute("UPDATE pricing_rules SET active=0 WHERE provider_code='muse' AND "
                  "model='muse-video' AND duration=? AND resolution=?", (duration, resolution))
     conn.execute("INSERT INTO pricing_rules(provider_code, model, duration, resolution, "

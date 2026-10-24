@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==========================================================================
-#  Muse Studio 部署自检
+#  Viora AI 部署自检
 #
 #  用法：
 #    bash deploy/verify.sh                     # 本机 127.0.0.1:8080
@@ -11,7 +11,7 @@
 set -uo pipefail
 
 DOMAIN="${1:-}"
-APP_DIR="${APP_DIR:-/opt/muse-studio}"
+APP_DIR="${APP_DIR:-/opt/viora-ai}"
 
 if [[ -n "$DOMAIN" ]]; then
   BASE="https://$DOMAIN"
@@ -30,8 +30,8 @@ echo
 # ---------------------------------------------------------------- 1. 服务
 echo "[1/7] 服务进程"
 if command -v systemctl >/dev/null 2>&1; then
-  if systemctl is-active --quiet muse-studio; then ok "muse-studio 服务运行中"
-  else bad "muse-studio 未运行 → systemctl status muse-studio --no-pager"; fi
+  if systemctl is-active --quiet viora-ai; then ok "viora-ai 服务运行中"
+  else bad "viora-ai 未运行 → systemctl status viora-ai --no-pager"; fi
 else
   warn "非 systemd 环境，跳过"
 fi

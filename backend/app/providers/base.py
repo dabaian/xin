@@ -16,7 +16,7 @@ class GenRequest:
     model: str = "muse-video"
     duration: int = 10
     aspect_ratio: str = "9:16"
-    resolution: str = "720p"
+    resolution: str = "1080p"
     image_url: str = ""          # 参考图（data URL 或公网 URL）
     thread_key: str = ""         # 号池侧会话标识，保证同一用户同一对话承接上下文
     reuse_thread: bool = False

@@ -20,7 +20,7 @@ import time
 import uuid
 
 from . import db, ledger
-from .config import CFG
+from .config import CFG, DEFAULT_RESOLUTION, normalize_resolution, resolution_multiplier
 from .providers.base import GenRequest, ProviderError
 from .providers.muse import provider_from_row
 
@@ -68,20 +68,22 @@ def _ext_for(mime: str, url: str = "") -> tuple[str, str]:
 
 
 # ------------------------------------------------------------------ 报价
-def quote(conn, duration: int, resolution: str = "720p", kind: str = "video") -> int:
-    """报价：图片 5 积分/张；视频 2 积分/秒（5 秒 10、10 秒 20）。"""
+def quote(conn, duration: int, resolution: str = DEFAULT_RESOLUTION, kind: str = "video") -> int:
+    """报价：图片 5 积分/张；视频 1080p 为 2 积分/秒（5 秒 10、10 秒 20），2K 翻倍。"""
     if kind == "image":
         row = conn.execute(
             "SELECT points FROM pricing_rules WHERE provider_code='muse' AND model='muse-image' "
             "AND active = 1 ORDER BY id DESC LIMIT 1").fetchone()
         return int(row["points"]) if row else CFG.points_per_image
+    res = normalize_resolution(resolution)
     row = conn.execute(
         "SELECT points FROM pricing_rules WHERE provider_code='muse' AND model='muse-video' "
         "AND duration <= ? AND resolution = ? AND active = 1 "
-        "ORDER BY duration DESC LIMIT 1", (int(duration), resolution)).fetchone()
+        "ORDER BY duration DESC LIMIT 1", (int(duration), res)).fetchone()
     if row:
         return int(row["points"])
-    return max(1, int(duration) * CFG.points_per_second)
+    # 价格表缺档时兜底：基准每秒积分 × 时长 × 清晰度倍率，宁可少收也不错扣
+    return max(1, int(duration) * CFG.points_per_second * resolution_multiplier(res))
 
 
 # ------------------------------------------------------------------ 提交
@@ -97,7 +99,7 @@ def create_task(conn, user_id: int, prompt: str, params: dict,
 
     kind = "image" if kind == "image" else "video"
     duration = int(params.get("duration") or (0 if kind == "image" else 10))
-    resolution = str(params.get("resolution") or "720p")
+    resolution = normalize_resolution(params.get("resolution"))
     aspect = str(params.get("aspect_ratio") or ("1:1" if kind == "image" else "9:16"))
     model = "muse-image" if kind == "image" else "muse-video"
 
@@ -204,7 +206,7 @@ def step_task(conn, task) -> bool:
             model=task["model"],
             duration=int(params.get("duration") or 10),
             aspect_ratio=str(params.get("aspect_ratio") or "9:16"),
-            resolution=str(params.get("resolution") or "720p"),
+            resolution=normalize_resolution(params.get("resolution")),
             image_url=str(params.get("image_url") or ""),
             thread_key=task["thread_key"] or ("u%st%s" % (task["user_id"], task["task_uid"][:8])),
             reuse_thread=True,

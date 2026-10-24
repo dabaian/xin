@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>登录 · Muse Studio</title>
-<link rel="icon" href="/assets/favicon.svg">
+<title>登录 · Viora AI</title>
+<link rel="icon" href="/assets/favicon.png">
 <link rel="stylesheet" href="/assets/css/app.css">
 <style>
 .split { display: grid; grid-template-columns: 1.05fr 1fr; min-height: 100vh; }
@@ -23,8 +23,8 @@
 }
 .side > * { position: relative; z-index: 1; }
 .side .logo { display: flex; align-items: center; gap: 11px; font-weight: 700; font-size: 16px; }
-.side .logo .m { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
-  background: linear-gradient(135deg,#FF7A45,#FF5A1F); font-weight: 800; }
+.side .logo .m { width: 34px; height: 34px; border-radius: 10px; object-fit: cover;
+  box-shadow: 0 4px 14px rgba(120,90,255,.45); }
 .side h1 { font-size: 40px; line-height: 1.22; letter-spacing: -.025em; margin: 0 0 14px; font-weight: 700; }
 .side h1 em { font-style: normal; color: #FF8A5B; }
 .side p { color: rgba(255,255,255,.62); font-size: 14px; max-width: 380px; line-height: 1.75; }
@@ -37,13 +37,24 @@
 
 .form-side { display: grid; place-items: center; padding: 40px 24px; background: #fff; }
 .form-box { width: 100%; max-width: 372px; }
+.cap-row { display: flex; gap: 10px; align-items: stretch; }
+.cap-row .input { flex: 1 1 auto; min-width: 0; letter-spacing: .3em; text-transform: uppercase; font-weight: 600; }
+#mailCode { letter-spacing: .22em; text-transform: none; }
+.cap-img {
+  flex: 0 0 auto; width: 126px; height: 44px; border-radius: 9px;
+  border: 1px solid var(--line); background: #F7F8FA; cursor: pointer;
+  object-fit: cover; transition: opacity .15s, border-color .15s;
+}
+.cap-img:hover { border-color: var(--brand-line); }
+.cap-img.loading { opacity: .4; }
+.hint { font-size: 11.5px; color: var(--muted); margin-top: 5px; }
 @media (max-width: 900px) { .split { grid-template-columns: 1fr; } .side { display: none; } }
 </style>
 </head>
 <body>
 <div class="split">
   <div class="side">
-    <div class="logo"><div class="m">M</div>Muse Studio</div>
+    <div class="logo"><img class="m" src="/assets/logo-mark.png" alt="Viora AI">Viora AI</div>
     <div>
       <h1>把一句话，<br>变成<em>能发的片子</em>。</h1>
       <p>面向短视频与电商内容的 AI 视频工作台。文本或图片进，10 秒成片出，按条计费，不用订阅。</p>
@@ -53,24 +64,53 @@
         <div><i>✓</i><span>扫码充值即时到账，积分永不过期</span></div>
       </div>
     </div>
-    <div class="foot">© 2026 Muse Studio · 内容由 AI 生成，请遵守平台规范</div>
+    <div class="foot">© 2026 Viora AI · 内容由 AI 生成，请遵守平台规范</div>
   </div>
 
   <div class="form-side">
     <div class="form-box" id="box">
       <h2 class="h2" style="margin-bottom:6px">登录</h2>
-      <p class="sub mb24">用邮箱账号继续</p>
+      <p class="sub mb16">用邮箱账号继续</p>
+
+      <div class="seg mb16" id="segMode">
+        <button data-v="password" class="on">密码登录</button>
+        <button data-v="code">验证码登录</button>
+      </div>
+
       <form id="form">
         <div class="field">
           <label class="label">邮箱</label>
           <input class="input" id="account" type="text" autocomplete="username"
                  placeholder="you@example.com" required>
         </div>
-        <div class="field">
+
+        <div class="field" id="pwdField">
           <label class="label">密码</label>
           <input class="input" id="password" type="password" autocomplete="current-password"
-                 placeholder="••••••••" required>
+                 placeholder="••••••••">
         </div>
+
+        <div id="codeWrap" style="display:none">
+          <div class="field">
+            <label class="label">图形验证码</label>
+            <div class="cap-row">
+              <input class="input" id="capCode" type="text" maxlength="4" autocomplete="off"
+                     placeholder="右侧 4 位">
+              <img class="cap-img" id="capImg" alt="验证码" title="点击刷新">
+            </div>
+          </div>
+          <div class="field">
+            <label class="label">邮箱验证码</label>
+            <div class="cap-row">
+              <input class="input" id="mailCode" type="text" maxlength="6" autocomplete="one-time-code"
+                     inputmode="numeric" placeholder="6 位数字">
+              <button class="btn" id="sendCode" type="button"
+                      style="flex:0 0 auto;min-width:112px">获取验证码</button>
+            </div>
+            <div class="hint" id="mailTip">验证码会发到上面的邮箱</div>
+          </div>
+        </div>
+
         <div class="between mb16">
           <label class="row" style="gap:6px;font-size:13px;color:var(--ink-3);cursor:pointer">
             <input type="checkbox" id="remember" checked> 保持登录
@@ -83,33 +123,144 @@
     </div>
   </div>
 </div>
+<!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
+<script src="/config.js"></script>
 <script src="/assets/js/core.js"></script>
 <script>
 (function () {
   const next = new URLSearchParams(location.search).get('next') || '/studio';
-  const box = $('#box');
+  let mode = 'password';
+  let capOn = true, capId = '', coolTimer = null;
 
   // 已登录直接跳走
   get('/api/auth/me').then(() => { location.href = next; }).catch(() => {});
 
+  /* ---------------- 图形验证码 ---------------- */
+  async function loadCaptcha() {
+    const img = $('#capImg');
+    img.classList.add('loading');
+    try {
+      const r = await get('/api/auth/captcha');
+      if (r && r.enabled === false) {
+        capOn = false;
+        $('#capCode').parentElement.style.display = 'none';
+        return;
+      }
+      capId = r.id;
+      img.src = r.image;
+      $('#capCode').value = '';
+    } catch (err) {
+      $('#mailTip').textContent = '验证码加载失败，点图片重试';
+    } finally {
+      img.classList.remove('loading');
+    }
+  }
+  $('#capImg').addEventListener('click', loadCaptcha);
+
+  /* ---------------- 模式切换 ---------------- */
+  function applyMode() {
+    const isCode = mode === 'code';
+    $('#pwdField').style.display = isCode ? 'none' : '';
+    $('#codeWrap').style.display = isCode ? '' : 'none';
+    $('#submit').textContent = isCode ? '验证码登录' : '登录';
+    $$('#segMode button').forEach((b) => b.classList.toggle('on', b.dataset.v === mode));
+    if (isCode && !$('#capImg').src) loadCaptcha();
+  }
+  $('#segMode').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    mode = b.dataset.v;
+    applyMode();
+    (mode === 'code' ? $('#mailCode') : $('#password')).focus();
+  });
+
+  /* ---------------- 发邮箱验证码 ---------------- */
+  function startCooldown(sec) {
+    const btn = $('#sendCode');
+    let left = sec;
+    btn.disabled = true;
+    btn.textContent = left + ' 秒后重发';
+    clearInterval(coolTimer);
+    coolTimer = setInterval(() => {
+      left -= 1;
+      if (left <= 0) {
+        clearInterval(coolTimer);
+        btn.disabled = false;
+        btn.textContent = '重新获取';
+      } else {
+        btn.textContent = left + ' 秒后重发';
+      }
+    }, 1000);
+  }
+
+  $('#sendCode').addEventListener('click', async () => {
+    const email = $('#account').value.trim();
+    if (!email) { toast('请先填写邮箱', 'warn'); $('#account').focus(); return; }
+    if (capOn && !$('#capCode').value.trim()) {
+      toast('请先填写右侧的图形验证码', 'warn'); $('#capCode').focus(); return;
+    }
+    const btn = $('#sendCode');
+    btn.disabled = true; btn.textContent = '发送中…';
+    try {
+      const r = await post('/api/auth/email-code', {
+        email: email,
+        purpose: 'login',
+        captcha_id: capId,
+        captcha_code: $('#capCode').value.trim(),
+      });
+      startCooldown(r.cooldown || 60);
+      if (r.echo) {
+        $('#mailCode').value = r.dev_code || '';
+        $('#mailTip').innerHTML = '<span style="color:var(--warn)">演示模式：邮件服务未配置，验证码已自动填入</span>';
+        toast('演示模式：验证码已填入', 'warn');
+      } else {
+        $('#mailTip').textContent = '已发送到 ' + email;
+        toast('验证码已发送', 'ok');
+      }
+      $('#mailCode').focus();
+    } catch (err) {
+      btn.disabled = false; btn.textContent = '获取验证码';
+      toast(err.message || '发送失败', 'bad');
+      if (capOn) loadCaptcha();
+    }
+  });
+
+  /* ---------------- 提交 ---------------- */
   $('#form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = $('#submit');
-    btn.disabled = true; btn.textContent = '登录中…';
+    const isCode = mode === 'code';
+    if (isCode && !$('#mailCode').value.trim()) {
+      toast('请先获取并填写邮箱验证码', 'warn');
+      $('#mailCode').focus();
+      return;
+    }
+    btn.disabled = true; btn.textContent = isCode ? '验证中…' : '登录中…';
     try {
       await post('/api/auth/login', {
         account: $('#account').value.trim(),
-        password: $('#password').value,
+        password: isCode ? '' : $('#password').value,
+        mode: isCode ? 'code' : 'password',
+        code: isCode ? $('#mailCode').value.trim() : '',
         remember: $('#remember').checked,
       });
       toast('欢迎回来', 'ok');
       setTimeout(() => { location.href = next; }, 320);
     } catch (err) {
-      btn.disabled = false; btn.textContent = '登录';
+      btn.disabled = false; btn.textContent = isCode ? '验证码登录' : '登录';
       toast(err.message || '登录失败', 'bad');
-      $('#password').select();
+      if (isCode) { if (capOn) loadCaptcha(); $('#mailCode').select(); }
+      else $('#password').select();
     }
   });
+
+  // 默认按密码登录；带 ?mode=code 直接进验证码模式
+  if (new URLSearchParams(location.search).get('mode') === 'code') {
+    mode = 'code';
+    applyMode();
+  }
+  applyMode();
+  loadCaptcha();
 
   const acc = new URLSearchParams(location.search).get('account');
   if (acc) { $('#account').value = acc; $('#password').focus(); } else $('#account').focus();

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>素材库 · Muse Studio</title>
-<link rel="icon" href="/assets/favicon.svg">
+<title>素材库 · Viora AI</title>
+<link rel="icon" href="/assets/favicon.png">
 <link rel="stylesheet" href="/assets/css/app.css">
 <style>
 .tabs { display: flex; gap: 4px; background: var(--line-2); padding: 3px; border-radius: 10px; }
@@ -27,6 +27,8 @@
 </style>
 </head>
 <body>
+<!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
+<script src="/config.js"></script>
 <script src="/assets/js/core.js"></script>
 <script>
 (async function () {
@@ -103,13 +105,13 @@
       box.innerHTML = r.items.map((it) => {
         const isVideo = it.kind === 'video';
         return `<div class="item">
-          <div class="pv" data-url="${it.url}" data-kind="${it.kind}">
+          <div class="pv" data-url="${mediaUrl(it.url)}" data-kind="${it.kind}">
             ${isVideo
-              ? `<video src="${it.url}#t=0.1" preload="metadata" muted playsinline></video>`
-              : `<img src="${it.url}" alt="" loading="lazy">`}
+              ? `<video src="${mediaUrl(it.url)}#t=0.1" preload="metadata" muted playsinline></video>`
+              : `<img src="${mediaUrl(it.url)}" alt="" loading="lazy">`}
             <div class="acts">
-              <button class="btn btn-sm" data-open="${it.url}" data-kind="${it.kind}">预览</button>
-              <button class="btn btn-sm" data-dl="${it.url}" data-kind="${it.kind}">下载</button>
+              <button class="btn btn-sm" data-open="${mediaUrl(it.url)}" data-kind="${it.kind}">预览</button>
+              <button class="btn btn-sm" data-dl="${mediaUrl(it.url)}" data-kind="${it.kind}">下载</button>
               <button class="btn btn-sm btn-danger" data-del="${it.id}">删除</button>
             </div>
           </div>
@@ -147,8 +149,8 @@
       modal({
         title: kind === 'video' ? '视频预览' : '图片预览', wide: true,
         body: kind === 'video'
-          ? `<video src="${b.dataset.open}" controls autoplay playsinline style="width:100%;border-radius:12px;background:#000;max-height:70vh"></video>`
-          : `<img src="${b.dataset.open}" style="width:100%;border-radius:12px">`,
+          ? `<video src="${mediaUrl(b.dataset.open)}" controls autoplay playsinline style="width:100%;border-radius:12px;background:#000;max-height:70vh"></video>`
+          : `<img src="${mediaUrl(b.dataset.open)}" style="width:100%;border-radius:12px">`,
       });
     });
     $$('[data-dl]').forEach((b) => b.onclick = (e) => {

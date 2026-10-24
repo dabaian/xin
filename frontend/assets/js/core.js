@@ -1,16 +1,48 @@
-/* Muse Studio · 前端基础库（无构建、无外部依赖） */
+/* Viora AI · 前端基础库（无构建、无外部依赖） */
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 
+/* ---------------------------------------------------------------- 后端地址
+ * 三处任选其一即可切换后端（优先级从上到下）：
+ *   1. <script src="/config.js"></script>  由后端动态下发（推荐，改 .env 就生效）
+ *   2. window.VIORA_API_BASE = 'https://api.xxx.com'  写在 core.js 之前
+ *   3. <meta name="viora-api-base" content="https://api.xxx.com">
+ * 都留空 = 同源部署，请求 /api/... 走当前域名。
+ * 前后端分开部署时后端要配 CORS_ORIGINS，否则浏览器会拦跨域请求。
+ */
+const API_BASE = (() => {
+  const cfg = (typeof window !== 'undefined' && window.VIORA_CONFIG) || {};
+  const meta = document.querySelector && document.querySelector('meta[name="viora-api-base"]');
+  const raw = cfg.api_base || (typeof window !== 'undefined' && window.VIORA_API_BASE)
+    || (meta && meta.content) || '';
+  return String(raw).trim().replace(/\/+$/, '');
+})();
+
+/* 把 /api/xxx 这类相对路径拼到后端地址上；已经是绝对地址的原样返回 */
+function apiUrl(path) {
+  if (!path) return path;
+  if (/^(?:https?:)?\/\//i.test(path)) return path;
+  if (/^(?:data|blob):/i.test(path)) return path;
+  if (!API_BASE) return path;
+  return API_BASE + (path.charAt(0) === '/' ? path : '/' + path);
+}
+
+/* 媒体/图片/视频地址同样要走 apiUrl，语义化的别名 */
+const mediaUrl = apiUrl;
+
 /* ---------------------------------------------------------------- 请求 */
 async function api(path, opts = {}) {
-  const init = { credentials: 'same-origin', headers: {}, ...opts };
+  const init = {
+    credentials: API_BASE ? 'include' : 'same-origin',
+    headers: {},
+    ...opts,
+  };
   if (init.body && typeof init.body !== 'string' && !(init.body instanceof FormData)) {
     init.headers['Content-Type'] = 'application/json';
     init.body = JSON.stringify(init.body);
   }
-  const res = await fetch(path, init);
+  const res = await fetch(apiUrl(path), init);
   let data = null;
   const text = await res.text();
   try { data = text ? JSON.parse(text) : null; } catch { data = { detail: text }; }
@@ -171,8 +203,8 @@ function buildLayout(active, user, title) {
     <div class="app">
       <aside class="sidebar" id="sidebar">
         <a class="brand" href="/studio">
-          <div class="brand-mark">M</div>
-          <div class="brand-name">Muse Studio<small>AI Video</small></div>
+          <img class="brand-mark" src="/assets/logo-mark.png" alt="Viora AI">
+          <div class="brand-name">Viora AI<small>AI Video</small></div>
         </a>
         <nav class="nav">
           <div class="nav-group">创作</div>${createNav}

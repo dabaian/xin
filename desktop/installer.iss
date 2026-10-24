@@ -1,9 +1,9 @@
-; Muse Studio 安装包（Inno Setup 6）
-; 用法：先 build.bat 打出 dist\MuseStudio.exe，再用 ISCC 编译本文件
-#define AppName "Muse Studio"
+; Viora AI 安装包（Inno Setup 6）
+; 用法：先 build.bat 打出 dist\VioraAI.exe，再用 ISCC 编译本文件
+#define AppName "Viora AI"
 #define AppVersion "2.0.0"
-#define AppPublisher "Muse Studio"
-#define AppExe "MuseStudio.exe"
+#define AppPublisher "Viora AI"
+#define AppExe "VioraAI.exe"
 
 [Setup]
 AppId={{8F3A61C2-4E77-4B0C-9A11-7D2E5C3B9A01}
@@ -14,7 +14,7 @@ DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 OutputDir=installer_out
-OutputBaseFilename=MuseStudio-Setup
+OutputBaseFilename=VioraAI-Setup
 SetupIconFile=icon.ico
 Compression=lzma2/max
 SolidCompression=yes

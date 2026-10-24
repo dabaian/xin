@@ -1,4 +1,4 @@
-"""Muse Studio · Windows 桌面客户端
+"""Viora AI · Windows 桌面客户端
 
 设计目标（与网页版共用一套前端）：
   · 原生窗口：没有地址栏 / 标签页 / 浏览器菜单，关了窗口进程即退出；
@@ -27,14 +27,14 @@ from pathlib import Path
 
 import webview
 
-APP_NAME = "Muse Studio"
+APP_NAME = "Viora AI"
 APP_VERSION = "2.0.0"
 LOCK_PORT = 47921
 
 BASE_DIR = (Path(sys.executable).resolve().parent
             if getattr(sys, "frozen", False) else Path(__file__).resolve().parent)
 CONFIG_PATH = BASE_DIR / "config.json"
-DATA_DIR = Path(os.environ.get("LOCALAPPDATA", str(BASE_DIR))) / "MuseStudio"
+DATA_DIR = Path(os.environ.get("LOCALAPPDATA", str(BASE_DIR))) / "VioraAI"
 SETTINGS_PATH = DATA_DIR / "settings.json"
 LOG_PATH = DATA_DIR / "client.log"
 
@@ -45,7 +45,7 @@ DEFAULT_CONFIG = {
 }
 
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-       "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 MuseStudio/" + APP_VERSION)
+       "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 VioraAI/" + APP_VERSION)
 
 
 # ------------------------------------------------------------------ 基础设施
@@ -258,7 +258,7 @@ class Bridge:
                 return
             url = api_base() + "/api/desktop/download"
             DATA_DIR.mkdir(parents=True, exist_ok=True)
-            setup = DATA_DIR / "update" / "MuseStudio-Setup.exe"
+            setup = DATA_DIR / "update" / "VioraAI-Setup.exe"
             setup.parent.mkdir(parents=True, exist_ok=True)
 
             req = urllib.request.Request(url, headers={"User-Agent": _UA})
@@ -281,7 +281,7 @@ class Bridge:
             self._update_state.update({"state": "failed", "error": str(exc)})
 
     def install_update(self) -> dict:
-        setup = DATA_DIR / "update" / "MuseStudio-Setup.exe"
+        setup = DATA_DIR / "update" / "VioraAI-Setup.exe"
         if not setup.is_file():
             return {"ok": False, "error": "安装包还没下好"}
         try:

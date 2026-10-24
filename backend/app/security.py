@@ -95,3 +95,7 @@ class RateLimiter:
 login_limiter = RateLimiter(limit=8, window=300)      # 5 分钟内最多 8 次登录尝试
 register_limiter = RateLimiter(limit=5, window=3600)  # 每小时最多注册 5 个
 api_limiter = RateLimiter(limit=60, window=60)
+# 验证码出图有 CPU 开销，单独限一道，正常人刷不到这个量
+captcha_limiter = RateLimiter(limit=40, window=300)
+# 发信按 IP 限速，防止被人拿来刷爆邮箱配额
+email_limiter = RateLimiter(limit=20, window=3600)
