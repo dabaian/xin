@@ -3,468 +3,1179 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Viora AI · 把一句话变成能发的艺术品</title>
-<meta name="description" content="面向短视频与电商的 AI 视频生成工作台：文生视频、图生视频、扫码充值、按条计费。">
+<title>Viora AI · 写下镜头，收下成片</title>
+<meta name="description" content="输入一段画面描述，几十秒后拿到一条 9:16 竖屏成片。1080p 与 2K，按条计费，不订阅、不绑卡。">
+<meta name="theme-color" content="#14110E">
 <link rel="icon" href="/assets/favicon.png">
-<link rel="stylesheet" href="/assets/css/app.css?v=20261025">
+<script>
+/* 开场动画的前置类；兜底：脚本挂了 2.6 秒后强制显示，绝不让内容卡在隐藏态 */
+(function () {
+  var h = document.documentElement;
+  h.classList.add('js');
+  window.__seqFallback = setTimeout(function () { h.classList.add('ready'); }, 2600);
+})();
+</script>
 <style>
-body { background: #fff; }
-.wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
-.nav { position: sticky; top: 0; z-index: 50; background: rgba(255,255,255,.86);
-  backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
-.nav-in { height: 64px; display: flex; align-items: center; gap: 26px; }
-.nav-links { display: flex; gap: 22px; margin-left: 12px; }
-.nav-links a { font-size: 13.5px; color: var(--ink-3); font-weight: 500; }
-.nav-links a:hover { color: var(--ink); }
-@media (max-width: 860px) { .nav-links { display: none; } }
+/* ==========================================================================
+   Viora AI · 落地页
+   一套「调色台」视觉：暖石墨底 + 象牙字 + 黄铜光。
+   页面即时间线：左导轨是进度，播放头随滚动走，底部读 SMPTE 时间码。
+   ========================================================================== */
 
-.hero { padding: 78px 0 60px; position: relative; overflow: hidden; }
-.hero::before { content: ''; position: absolute; right: -160px; top: -240px; width: 720px; height: 720px;
-  background: radial-gradient(circle, rgba(255,90,31,.13), transparent 62%); pointer-events: none; }
-.hero-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 54px; align-items: center; position: relative; }
-@media (max-width: 980px) { .hero-grid { grid-template-columns: 1fr; gap: 36px; } }
-.eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 6px 13px; border-radius: 20px;
-  background: var(--brand-soft); color: var(--brand-ink); font-size: 12.5px; font-weight: 600;
-  border: 1px solid var(--brand-line); }
-.hero h1 { font-size: 54px; line-height: 1.14; letter-spacing: -.03em; margin: 20px 0 18px; font-weight: 740; }
-.hero h1 em { font-style: normal; color: var(--brand); }
-.hero p.lead { font-size: 16px; color: var(--ink-3); line-height: 1.8; max-width: 480px; }
-.hero-cta { display: flex; gap: 12px; margin-top: 30px; flex-wrap: wrap; }
-.hero-meta { display: flex; gap: 30px; margin-top: 38px; }
-.hero-meta div b { display: block; font-family: var(--mono); font-size: 22px; letter-spacing: -.02em; }
-.hero-meta div span { font-size: 12px; color: var(--muted); }
+:root{
+  --bg:#14110E;
+  --ivory:#F2ECE3;
+  --ivory-2:#B7AEA2;
+  --ivory-3:#7C7469;
+  --brass:#D5AE6C;
+  --brass-2:#B08A45;
+  --line:rgba(242,236,227,.10);
+  --line-2:rgba(242,236,227,.055);
 
-.showcase { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.vcard { position: relative; border-radius: 16px; overflow: hidden; background: #101319;
-  box-shadow: var(--sh-3); aspect-ratio: 9/13; }
-.vcard:nth-child(2) { margin-top: 34px; }
-.vcard img { width: 100%; height: 100%; object-fit: cover; display: block;
-  transition: transform .8s cubic-bezier(.22,.61,.36,1); }
-.vcard:hover img { transform: scale(1.045); }
-.vcard::after { content: ''; position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(0,0,0,.28) 0%, transparent 32%, transparent 58%, rgba(0,0,0,.62) 100%); }
-.vcard .play { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 2;
-  width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center;
-  background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.4);
-  backdrop-filter: blur(6px); color: #fff; }
-.vcard .play svg { width: 17px; height: 17px; margin-left: 2px; }
-.vcard .chip { position: absolute; left: 10px; top: 10px; z-index: 2; font-size: 10.5px; font-weight: 600;
-  color: #fff; padding: 3px 8px; border-radius: 6px; background: rgba(0,0,0,.42);
-  border: 1px solid rgba(255,255,255,.16); backdrop-filter: blur(6px); }
-.vcard .lbl { position: absolute; left: 10px; bottom: 10px; right: 10px; z-index: 2; color: #fff;
-  font-size: 11.5px; padding: 6px 10px; border-radius: 8px; background: rgba(0,0,0,.45);
-  backdrop-filter: blur(6px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  --rail:88px;
+  --gut:clamp(20px,4vw,40px);
+  --wrap:1180px;
 
-/* 作品墙 */
-.wall { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
-@media (max-width: 1100px) { .wall { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 620px) { .wall { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.shot { position: relative; margin: 0; border-radius: 14px; overflow: hidden; background: #101319;
-  aspect-ratio: 9/14; box-shadow: var(--sh-2); }
-.shot img { width: 100%; height: 100%; object-fit: cover; display: block;
-  transition: transform .7s cubic-bezier(.22,.61,.36,1); }
-.shot:hover img { transform: scale(1.06); }
-.shot::after { content: ''; position: absolute; inset: 0;
-  background: linear-gradient(180deg, transparent 45%, rgba(0,0,0,.72) 100%); }
-.shot figcaption { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 9px 10px;
-  color: #fff; font-size: 11.5px; line-height: 1.45; }
-.shot figcaption b { display: block; font-size: 12px; font-weight: 650; margin-bottom: 1px; }
-.shot figcaption span { color: rgba(255,255,255,.62); }
-.shot .tag { position: absolute; right: 8px; top: 8px; z-index: 2; font-size: 10px;
-  padding: 2px 7px; border-radius: 6px; color: #fff; background: rgba(0,0,0,.4);
-  border: 1px solid rgba(255,255,255,.18); backdrop-filter: blur(6px); }
+  --font:Bahnschrift,"DIN Alternate","Helvetica Neue","PingFang SC",
+         "HarmonyOS Sans SC","Source Han Sans SC","Microsoft YaHei",sans-serif;
+  --mono:"Cascadia Mono","SF Mono",Consolas,"Liberation Mono",monospace;
 
-.section { padding: 74px 0; }
-.section.alt { background: var(--bg); }
-.sec-head { text-align: center; max-width: 640px; margin: 0 auto 44px; }
-.sec-head h2 { font-size: 34px; letter-spacing: -.025em; margin: 0 0 12px; font-weight: 700; }
-.sec-head p { color: var(--ink-3); font-size: 15px; margin: 0; line-height: 1.75; }
-
-.feats { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; }
-.feat { background: #fff; border: 1px solid var(--line); border-radius: var(--r-lg); padding: 24px; }
-.feat .ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
-  background: var(--brand-soft); color: var(--brand); margin-bottom: 14px; }
-.feat .ic svg { width: 20px; height: 20px; }
-.feat h3 { font-size: 15.5px; margin: 0 0 7px; }
-.feat p { margin: 0; font-size: 13.5px; color: var(--ink-3); line-height: 1.75; }
-
-.price-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-@media (max-width: 980px) { .price-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 560px) { .price-grid { grid-template-columns: 1fr; } }
-.price { background: #fff; border: 1.5px solid var(--line); border-radius: var(--r-lg); padding: 24px 20px;
-  position: relative; transition: all .18s; }
-.price:hover { border-color: var(--brand-line); box-shadow: var(--sh-2); transform: translateY(-2px); }
-.price.hot { border-color: var(--brand); box-shadow: var(--sh-brand); }
-.price .pn { font-size: 13px; color: var(--ink-3); font-weight: 550; }
-.price .pp { font-family: var(--mono); font-size: 30px; font-weight: 700; letter-spacing: -.03em; margin: 8px 0 2px; }
-.price .pp small { font-family: var(--font); font-size: 12px; color: var(--muted); font-weight: 500; }
-.price .pd { font-size: 13px; color: var(--ink-3); margin-top: 4px; }
-.price .py { margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--line);
-  font-family: var(--mono); font-size: 18px; font-weight: 700; }
-.price .py small { font-family: var(--font); font-size: 11.5px; color: var(--muted); font-weight: 500; }
-.price .rtag { position: absolute; top: 0; right: 18px; transform: translateY(-50%);
-  background: var(--brand); color: #fff; font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 20px; }
-
-.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 20px; }
-.step { position: relative; padding-top: 8px; }
-.step .n { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--brand);
-  width: 26px; height: 26px; border-radius: 8px; background: var(--brand-soft); display: grid;
-  place-items: center; margin-bottom: 12px; }
-.step h3 { font-size: 15px; margin: 0 0 6px; }
-.step p { font-size: 13.5px; color: var(--ink-3); margin: 0; line-height: 1.75; }
-
-.cta { background: linear-gradient(140deg, #14171D, #262A33 55%, #33211A); border-radius: 24px;
-  padding: 52px 44px; color: #fff; display: flex; align-items: center; justify-content: space-between;
-  gap: 30px; flex-wrap: wrap; position: relative; overflow: hidden; }
-.cta::after { content: ''; position: absolute; right: -80px; top: -100px; width: 420px; height: 420px;
-  background: radial-gradient(circle, rgba(255,90,31,.45), transparent 62%); }
-.cta h2 { font-size: 30px; letter-spacing: -.025em; margin: 0 0 10px; position: relative; }
-.cta p { margin: 0; color: rgba(255,255,255,.62); font-size: 14px; position: relative; }
-
-.foot { padding: 40px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; }
-.foot .in { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
-
-/* ---------- 导航：平滑滚动 + 当前位置高亮 + 顶部进度条 ---------- */
-.section[id], section[id] { scroll-margin-top: 80px; }
-
-.nav-links a { position: relative; transition: color .18s ease; }
-.nav-links a::after {
-  content: ''; position: absolute; left: 50%; right: 50%; bottom: -8px; height: 2px;
-  background: var(--brand); border-radius: 2px;
-  transition: left .28s cubic-bezier(.22,.61,.36,1), right .28s cubic-bezier(.22,.61,.36,1);
+  --ease:cubic-bezier(.16,1,.3,1);
 }
-.nav-links a:hover::after,
-.nav-links a.on::after { left: 0; right: 0; }
-.nav-links a.on { color: var(--ink); font-weight: 600; }
 
-.scroll-bar { position: fixed; left: 0; right: 0; top: 0; height: 2px; z-index: 60;
-  pointer-events: none; }
-.scroll-bar i { display: block; height: 100%; width: 0; border-radius: 0 2px 2px 0;
-  background: linear-gradient(90deg, var(--brand), #FFB27A); transition: width .1s linear; }
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;padding-left:var(--rail);
+  background:var(--bg);color:var(--ivory);
+  font-family:var(--font);font-size:15px;line-height:1.72;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+}
+img,video{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+button,input{font:inherit;color:inherit}
+::selection{background:rgba(213,174,108,.32);color:#fff}
+:focus-visible{outline:2px solid var(--brass);outline-offset:3px}
+
+::-webkit-scrollbar{width:11px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:#2E2823;border:3px solid var(--bg);border-radius:9px}
+::-webkit-scrollbar-thumb:hover{background:#443B33}
+
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 var(--gut)}
+
+/* ------------------------------------------------------------------ 胶片颗粒 */
+.grain{
+  position:fixed;inset:0;z-index:80;pointer-events:none;opacity:.032;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
+}
+
+/* ------------------------------------------------------------------ 左导轨（时间线） */
+.rail{position:fixed;left:0;top:0;bottom:0;width:var(--rail);z-index:40;pointer-events:none}
+.rail-track{position:absolute;left:44px;top:132px;bottom:104px;width:1px;background:var(--line)}
+.rail-fill{position:absolute;left:0;top:0;width:1px;height:0;
+  background:linear-gradient(180deg,rgba(213,174,108,.12),var(--brass))}
+.rail-head{position:absolute;left:0;top:0;width:15px;height:1px;
+  background:var(--brass);transform:translate(-7px,0);box-shadow:0 0 12px rgba(213,174,108,.55)}
+.rail-head::after{content:'';position:absolute;left:6px;top:-2px;width:5px;height:5px;
+  border-radius:50%;background:var(--brass);box-shadow:0 0 10px rgba(213,174,108,.9)}
+.rail-dot{position:absolute;left:0;width:3px;height:3px;border-radius:50%;
+  background:#4A423A;transform:translate(-1px,-1.5px);transition:background .3s,box-shadow .3s}
+.rail-dot.on{background:var(--brass);box-shadow:0 0 8px rgba(213,174,108,.8)}
+.rail-tc{position:absolute;left:0;right:0;bottom:52px;text-align:center;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.03em;color:#6A6259;
+  font-variant-numeric:tabular-nums}
+.rail-mark{position:absolute;left:0;right:0;bottom:30px;text-align:center;
+  font-size:8.5px;letter-spacing:.26em;color:#4E463E}
+@media (max-width:1179px){
+  :root{--rail:0px}
+  .rail{display:none}
+}
+
+/* ------------------------------------------------------------------ 导航 */
+.nav{position:sticky;top:0;z-index:50;border-bottom:1px solid transparent;
+  transition:background .3s,border-color .3s}
+.nav.stuck{background:rgba(20,17,14,.9);
+  -webkit-backdrop-filter:blur(14px) saturate(140%);backdrop-filter:blur(14px) saturate(140%);
+  border-bottom-color:var(--line)}
+.nav-in{height:78px;display:flex;align-items:center;gap:14px}
+
+.brand{display:flex;align-items:center;gap:11px;margin-right:26px}
+.brand svg{width:22px;height:22px;flex:none;color:var(--brass)}
+.brand span{font-size:16px;font-weight:600;letter-spacing:-.01em}
+.brand span em{font-style:normal;color:var(--ivory-3);font-weight:400;font-size:12px;margin-left:5px;letter-spacing:.04em}
+
+.nlinks{display:flex;align-items:center;gap:26px}
+.nlinks a{position:relative;font-size:13.5px;color:var(--ivory-2);transition:color .22s;padding:4px 0}
+.nlinks a::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;
+  background:var(--brass);transform:scaleX(0);transform-origin:left;transition:transform .34s var(--ease)}
+.nlinks a:hover,.nlinks a.on{color:var(--ivory)}
+.nlinks a:hover::after,.nlinks a.on::after{transform:scaleX(1)}
+
+.nav-sp{flex:1}
+.tlink{font-size:13.5px;color:var(--ivory-2);padding:6px 2px;position:relative;
+  transition:color .22s;white-space:nowrap}
+.tlink::after{content:'';position:absolute;left:0;right:0;bottom:2px;height:1px;background:currentColor;
+  transform:scaleX(0);transform-origin:left;transition:transform .34s var(--ease)}
+.tlink:hover{color:var(--ivory)}
+.tlink:hover::after{transform:scaleX(1)}
+
+.btn-solid{display:inline-flex;align-items:center;justify-content:center;
+  height:38px;padding:0 18px;border:0;border-radius:4px;cursor:pointer;
+  background:var(--brass);color:#171310;font-size:13.5px;font-weight:600;letter-spacing:.01em;
+  white-space:nowrap;transition:background .24s,transform .24s var(--ease),box-shadow .24s}
+.btn-solid:hover{background:#E2BE7E;transform:translateY(-1px);box-shadow:0 8px 22px rgba(213,174,108,.22)}
+.btn-solid:active{transform:translateY(0)}
+
+@media (max-width:900px){
+  .nlinks{display:none}
+  .nav-in{height:66px}
+  .brand{margin-right:0}
+}
+
+/* ------------------------------------------------------------------ 首屏 */
+.hero{position:relative;padding:clamp(40px,6vw,84px) 0 clamp(56px,7vw,96px);overflow:hidden}
+.hero::before{content:'';position:absolute;right:-16%;top:-44%;
+  width:min(1000px,95vw);height:min(1000px,95vw);
+  background:radial-gradient(circle at 62% 42%,rgba(213,174,108,.115),rgba(213,174,108,.03) 42%,transparent 66%);
+  pointer-events:none}
+.hero-in{position:relative;display:grid;gap:clamp(34px,5vw,72px);
+  grid-template-columns:minmax(0,1.12fr) minmax(0,.78fr);align-items:center}
+@media (max-width:960px){.hero-in{grid-template-columns:1fr;gap:44px}}
+
+.hh{margin:0;font-size:clamp(41px,6.05vw,84px);line-height:1.14;letter-spacing:-.035em;font-weight:600}
+.hh .ln{display:block;overflow:hidden;padding-bottom:.1em;margin-bottom:-.1em}
+.hh .ln i{display:block;font-style:normal;transition:transform 1.05s var(--ease)}
+.hh .ln:nth-child(1) i{transition-delay:.06s}
+.hh .ln:nth-child(2) i{transition-delay:.16s}
+html.js:not(.ready) .hh .ln i{transform:translateY(112%)}
+
+.lead{margin:clamp(20px,2.4vw,28px) 0 0;max-width:33em;
+  font-size:clamp(14.5px,1.15vw,16.5px);line-height:1.92;color:var(--ivory-2);
+  transition:opacity .9s var(--ease) .34s,transform .9s var(--ease) .34s}
+html.js:not(.ready) .lead{opacity:0;transform:translateY(10px)}
+
+/* 提示词输入条 —— 它本身就是产品，所以放在首屏正中 */
+.pbar{position:relative;margin-top:clamp(26px,3vw,36px);
+  display:flex;align-items:center;gap:10px;height:58px;padding:0 8px 0 20px;border-radius:5px;
+  background:rgba(242,236,227,.035);border:1px solid rgba(242,236,227,.14);
+  transition:border-color .3s,background .3s,box-shadow .3s,opacity .9s var(--ease) .46s,transform .9s var(--ease) .46s}
+.pbar:focus-within{border-color:rgba(213,174,108,.55);background:rgba(242,236,227,.05);
+  box-shadow:0 0 0 4px rgba(213,174,108,.07)}
+html.js:not(.ready) .pbar{opacity:0;transform:translateY(12px)}
+.pbar input{flex:1;min-width:0;height:100%;border:0;background:transparent;outline:none;
+  font-size:15px;color:var(--ivory);position:relative;z-index:2}
+/* 输入框不用原生 placeholder：它和下面这层逐字动画会叠成重影 */
+.pbar .ph,.pbar .hint{position:absolute;left:20px;top:0;height:58px;display:flex;align-items:center;
+  pointer-events:none;font-size:15px;overflow:hidden;white-space:nowrap;z-index:1}
+.pbar .ph{right:96px;color:#7A7268}
+.pbar .ph b{font-weight:400}
+.pbar .ph .caret{display:inline-block;width:1px;height:17px;margin-left:2px;
+  background:var(--brass);animation:blink 1.05s steps(1) infinite}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+.pbar .hint{color:#5E5750;display:none}
+.pbar:focus-within .ph{display:none}
+.pbar:focus-within .hint{display:flex}
+.pbar.has-val .hint{display:none}
+
+.facts{margin:clamp(22px,2.6vw,30px) 0 0;padding:0;list-style:none;
+  display:flex;flex-wrap:wrap;align-items:center;
+  transition:opacity .9s var(--ease) .56s}
+html.js:not(.ready) .facts{opacity:0}
+.facts li{font-size:12.5px;color:var(--ivory-3);letter-spacing:.02em;
+  padding:2px 16px;border-left:1px solid var(--line-2);white-space:nowrap}
+.facts li:first-child{padding-left:0;border-left:0}
+.facts li b{font-weight:500;color:var(--ivory-2);font-variant-numeric:tabular-nums}
+
+/* 首屏那一帧：真实生成的片子 */
+.hero-frame{justify-self:end;width:100%;max-width:352px}
+.fm{position:relative;aspect-ratio:9/16;overflow:hidden;background:#0D0B09;
+  border:1px solid rgba(242,236,227,.09)}
+.fm video{width:100%;height:100%;object-fit:cover;
+  transition:filter 1.2s var(--ease),transform 1.7s var(--ease)}
+html.js .fm video{filter:blur(22px) brightness(.42) saturate(.45);transform:scale(1.07)}
+html.js .fm.lit video{filter:none;transform:scale(1)}
+.fm::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(10,8,6,.45) 0%,transparent 24%,transparent 76%,rgba(10,8,6,.5) 100%)}
+.cm{position:absolute;width:15px;height:15px;z-index:3;opacity:.55}
+.cm::before,.cm::after{content:'';position:absolute;background:var(--brass)}
+.cm::before{width:100%;height:1px}
+.cm::after{width:1px;height:100%}
+.cm.a{left:9px;top:9px}
+.cm.b{right:9px;top:9px}
+.cm.b::before{right:0}.cm.b::after{right:0}
+.cm.c{left:9px;bottom:9px}
+.cm.c::before{bottom:0}.cm.c::after{bottom:0}
+.cm.d{right:9px;bottom:9px}
+.cm.d::before{right:0;bottom:0}.cm.d::after{right:0;bottom:0}
+
+.fm-hud{position:absolute;left:12px;top:12px;right:12px;z-index:3;display:flex;justify-content:space-between;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;color:rgba(242,236,227,.75)}
+.fm-prog{position:absolute;left:0;right:0;bottom:0;height:1px;z-index:3;
+  background:rgba(242,236,227,.12);transition:opacity .5s ease}
+.fm-prog i{display:block;height:100%;width:0;background:var(--brass)}
+.fm-prog em{position:absolute;right:10px;bottom:8px;font-style:normal;
+  font-family:var(--mono);font-size:9.5px;color:var(--brass);letter-spacing:.04em}
+.fm.done .fm-prog{opacity:0}
+.fm-cap{margin:13px 0 0;font-size:12px;line-height:1.6;color:var(--ivory-3);
+  border-left:1px solid var(--line);padding-left:11px;transition:opacity .9s var(--ease) .8s}
+html.js:not(.ready) .fm-cap{opacity:0}
+
+/* ------------------------------------------------------------------ 通用区块 */
+.sec{padding:clamp(64px,8.4vw,124px) 0;border-top:1px solid var(--line-2)}
+/* 直接带 # 打开时，落点别被吸顶导航盖住 */
+.sec[id]{scroll-margin-top:86px}
+.sec-head{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:clamp(20px,4vw,56px);align-items:end;margin-bottom:clamp(34px,4.4vw,54px)}
+@media (max-width:820px){.sec-head{grid-template-columns:1fr;align-items:start}}
+.sec-head h2{margin:0;font-size:clamp(28px,3.7vw,44px);line-height:1.2;
+  letter-spacing:-.032em;font-weight:600}
+.sec-head p{margin:0;font-size:14.5px;line-height:1.85;color:var(--ivory-2);max-width:36em}
+.sec-head p b{font-weight:500;color:var(--ivory)}
+
+/* 小节分隔：左侧标签 + 数量 + 发丝线填满 */
+.sub{display:flex;align-items:center;gap:14px;margin:clamp(40px,5vw,64px) 0 clamp(16px,2vw,24px)}
+.sub:first-of-type{margin-top:0}
+.sub .t{font-size:13px;color:var(--ivory-2);letter-spacing:.04em;white-space:nowrap}
+.sub .c{font-family:var(--mono);font-size:11px;color:var(--brass-2);
+  font-variant-numeric:tabular-nums;letter-spacing:.06em;white-space:nowrap}
+.sub .l{flex:1;height:1px;background:var(--line)}
+.sub .h{font-size:11.5px;color:var(--ivory-3);white-space:nowrap}
+
+/* ------------------------------------------------------------------ 作品：等高行（宽度按原始比例分配） */
+.jrow{display:flex;gap:clamp(8px,1.2vw,16px);align-items:flex-start}
+.jrow + .jrow{margin-top:clamp(8px,1.2vw,16px)}
+.jitem{flex-grow:var(--r);flex-shrink:1;flex-basis:0;min-width:0;margin:0}
+
+.frame{position:relative;aspect-ratio:var(--r);overflow:hidden;background:#0D0B09;
+  border:1px solid rgba(242,236,227,.07);cursor:zoom-in;padding:0;width:100%;display:block}
+.frame img,.frame video{width:100%;height:100%;object-fit:cover;
+  transition:transform 1s var(--ease),filter .5s ease}
+.frame:hover img,.frame:hover video{transform:scale(1.028)}
+.frame::after{content:'';position:absolute;inset:0;pointer-events:none;
+  opacity:0;transition:opacity .45s;box-shadow:inset 0 0 0 1px rgba(213,174,108,.42)}
+.frame:hover::after{opacity:1}
+
+.fc{padding:11px 2px 0;border-top:1px solid var(--line-2);margin-top:10px;transition:border-color .4s}
+.jitem:hover .fc{border-top-color:rgba(213,174,108,.4)}
+.fc .r1{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.fc .t{font-size:12.5px;font-weight:500;color:var(--ivory);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.fc .k{font-size:10.5px;color:var(--brass-2);white-space:nowrap;letter-spacing:.03em}
+.fc .q{margin:5px 0 0;font-size:11.5px;line-height:1.58;color:var(--ivory-3);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+@media (max-width:760px){
+  .jrow{display:block}
+  .jrow + .jrow{margin-top:14px}
+  .jitem{width:100%;margin-bottom:20px}
+  .jitem:last-child{margin-bottom:0}
+  .fc .q{-webkit-line-clamp:3}
+}
+
+/* 视频播放提示 */
+.vplay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;
+  width:44px;height:44px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(20,17,14,.42);border:1px solid rgba(242,236,227,.4);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  transition:opacity .35s,transform .35s var(--ease)}
+.vplay svg{width:14px;height:14px;margin-left:2px;fill:#fff}
+.jitem:hover .vplay{transform:translate(-50%,-50%) scale(1.06)}
+.jitem.playing .vplay{opacity:0}
+
+/* ------------------------------------------------------------------ 能力：竖排清单 */
+.cap-grid{display:grid;grid-template-columns:minmax(0,.86fr) minmax(0,1.14fr);gap:clamp(28px,5vw,72px)}
+@media (max-width:900px){.cap-grid{grid-template-columns:1fr;gap:34px}}
+.cap-left{position:sticky;top:112px;align-self:start}
+@media (max-width:900px){.cap-left{position:static}}
+.cap-left h2{margin:0;font-size:clamp(28px,3.7vw,44px);line-height:1.2;
+  letter-spacing:-.032em;font-weight:600}
+.cap-left p{margin:18px 0 0;font-size:14.5px;line-height:1.85;color:var(--ivory-2);max-width:26em}
+
+.cap-list{border-top:1px solid var(--line)}
+.cap-row{position:relative;display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);
+  gap:clamp(14px,2.4vw,34px);padding:clamp(18px,2.1vw,25px) 0;
+  border-bottom:1px solid var(--line-2);transition:background .4s}
+@media (max-width:620px){.cap-row{grid-template-columns:1fr;gap:7px}}
+.cap-row::before{content:'';position:absolute;left:-1px;top:0;bottom:0;width:1px;
+  background:var(--brass);transform:scaleY(0);transform-origin:top;transition:transform .5s var(--ease)}
+.cap-row:hover::before{transform:scaleY(1)}
+.cap-row h3{margin:0;font-size:16.5px;font-weight:500;color:var(--ivory);
+  transition:transform .5s var(--ease),color .3s}
+.cap-row:hover h3{transform:translateX(12px)}
+.cap-row p{margin:0;font-size:13.5px;line-height:1.82;color:var(--ivory-3)}
+.cap-row:hover p{color:var(--ivory-2)}
+
+/* ------------------------------------------------------------------ 三步 */
+.steps{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:clamp(20px,3.4vw,52px)}
+@media (max-width:820px){.steps{grid-template-columns:1fr;gap:0}}
+.step{position:relative;padding-top:30px}
+.step::before{content:'';position:absolute;left:0;right:0;top:0;height:1px;background:var(--line)}
+.step::after{content:'';position:absolute;left:0;top:-3px;width:7px;height:7px;border-radius:50%;
+  background:var(--brass);box-shadow:0 0 0 4px var(--bg),0 0 16px rgba(213,174,108,.55)}
+@media (max-width:820px){
+  .step{padding:26px 0 26px 24px}
+  .step:first-child{padding-top:0}
+  .step::before{left:0;right:auto;top:0;bottom:0;width:1px;height:auto}
+  .step::after{left:-3px;top:32px}
+  .step:first-child::after{top:3px}
+}
+.step .tc{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--brass-2);
+  font-variant-numeric:tabular-nums}
+.step h3{margin:10px 0 8px;font-size:19px;font-weight:500;letter-spacing:-.012em}
+.step p{margin:0;font-size:13.5px;line-height:1.85;color:var(--ivory-3);max-width:26em}
+
+/* ------------------------------------------------------------------ 价目表 */
+.rates{border-top:1px solid var(--line)}
+.rate-head,.rate{display:grid;grid-template-columns:1.5fr .9fr 1.1fr .7fr;
+  gap:16px;align-items:center;padding:0 clamp(0px,1vw,10px)}
+@media (max-width:760px){
+  .rate-head,.rate{grid-template-columns:1.4fr .9fr auto;gap:10px}
+  .rate-head span:nth-child(3),.rate .c3{display:none}
+}
+.rate-head{height:44px;font-size:11.5px;letter-spacing:.04em;color:var(--ivory-3);
+  border-bottom:1px solid var(--line-2)}
+.rate-head span:last-child,.rate .c4{text-align:right}
+.rate{position:relative;height:clamp(62px,6.4vw,74px);
+  border-bottom:1px solid var(--line-2);transition:background .34s}
+.rate::before{content:'';position:absolute;left:0;top:0;bottom:0;width:1px;background:var(--brass);
+  transform:scaleY(0);transform-origin:center;transition:transform .45s var(--ease)}
+.rate:hover{background:rgba(242,236,227,.022)}
+.rate:hover::before{transform:scaleY(1)}
+.rate .c1{display:flex;align-items:center;gap:10px;min-width:0}
+.rate .nm{font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rate .flag{flex:none;font-size:10.5px;letter-spacing:.05em;color:var(--brass);
+  border:1px solid rgba(213,174,108,.32);border-radius:2px;padding:1px 6px;line-height:1.5}
+.rate .c2{font-family:var(--mono);font-size:15px;color:var(--ivory);
+  font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.rate .c2 small{font-family:var(--font);font-size:11px;color:var(--ivory-3);margin-left:3px}
+.rate .c3{font-size:12.5px;color:var(--ivory-3);font-variant-numeric:tabular-nums}
+.rate .c4{font-family:var(--mono);font-size:19px;font-weight:600;color:var(--ivory);
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.rate .c4 small{font-family:var(--font);font-size:11px;font-weight:400;color:var(--ivory-3);margin-left:3px}
+.rate-note{margin:22px 0 0;font-size:12.5px;line-height:1.8;color:var(--ivory-3);
+  display:flex;flex-wrap:wrap;gap:8px 26px}
+.rate-note span{display:flex;align-items:center;gap:8px}
+.rate-note span::before{content:'';width:5px;height:1px;background:var(--brass-2);flex:none}
+
+/* ------------------------------------------------------------------ 收尾 */
+.end{padding:clamp(64px,8vw,116px) 0 clamp(44px,5vw,64px);border-top:1px solid var(--line-2);
+  position:relative;overflow:hidden}
+.end::before{content:'';position:absolute;left:50%;top:0;transform:translate(-50%,-52%);
+  width:min(900px,90vw);height:min(900px,90vw);
+  background:radial-gradient(circle,rgba(213,174,108,.1),transparent 62%);pointer-events:none}
+.end-in{position:relative}
+.end h2{margin:0;font-size:clamp(30px,4.6vw,58px);line-height:1.16;letter-spacing:-.036em;
+  font-weight:600;max-width:15em}
+.end p{margin:20px 0 0;font-size:15px;line-height:1.85;color:var(--ivory-2);max-width:30em}
+.end-cta{display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin-top:clamp(28px,3.4vw,40px)}
+.btn-lg{height:48px;padding:0 26px;font-size:14.5px;border-radius:5px}
+
+.foot{border-top:1px solid var(--line-2);padding:30px 0 38px}
+.foot-in{display:flex;flex-wrap:wrap;align-items:center;gap:16px 34px;font-size:12.5px;color:var(--ivory-3)}
+.foot-in .sp{flex:1}
+.foot-in a{color:var(--ivory-3);transition:color .22s}
+.foot-in a:hover{color:var(--ivory)}
+.foot-in .cc{color:#5A534B}
+
+/* ------------------------------------------------------------------ 大图查看 */
+.lb{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;
+  padding:clamp(20px,4vw,56px);
+  background:rgba(12,10,8,.9);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
+  opacity:0;transition:opacity .28s ease}
+.lb[hidden]{display:none}
+.lb.in{opacity:1}
+.lb-box{max-width:min(1080px,100%);max-height:100%;display:flex;flex-direction:column;
+  gap:16px;transform:scale(.985);transition:transform .34s var(--ease)}
+.lb.in .lb-box{transform:scale(1)}
+.lb-media{min-height:0;display:flex;justify-content:center}
+.lb-media img,.lb-media video{max-width:100%;max-height:min(74vh,760px);
+  width:auto;height:auto;object-fit:contain;border:1px solid rgba(242,236,227,.1);background:#0D0B09}
+.lb-cap{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;max-width:820px}
+.lb-cap .lb-k{font-family:var(--mono);font-size:10px;color:var(--brass);letter-spacing:.08em;
+  padding-top:3px;white-space:nowrap}
+.lb-cap .lb-cn{margin:0;font-size:14px;line-height:1.75;color:var(--ivory)}
+.lb-cap .lb-en{margin:0;font-size:11.5px;line-height:1.7;color:var(--ivory-3);grid-column:2}
+.lb-x{position:absolute;right:clamp(16px,3vw,34px);top:clamp(16px,3vw,30px);
+  width:40px;height:40px;border-radius:50%;border:1px solid rgba(242,236,227,.24);
+  background:rgba(20,17,14,.5);color:var(--ivory);cursor:pointer;display:grid;place-items:center;
+  transition:border-color .25s,background .25s}
+.lb-x:hover{border-color:rgba(242,236,227,.55);background:rgba(20,17,14,.8)}
+.lb-x svg{width:15px;height:15px}
+
+/* ------------------------------------------------------------------ 减少动效 */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}
+  html.js .fm video,html.js .fm.lit video{filter:none;transform:none}
+  html.js:not(.ready) .hh .ln i,html.js:not(.ready) .lead,
+  html.js:not(.ready) .pbar,html.js:not(.ready) .facts,html.js:not(.ready) .fm-cap{
+    opacity:1;transform:none}
+}
 </style>
 </head>
 <body>
-<div class="scroll-bar" aria-hidden="true"><i id="scrollBar"></i></div>
-<header class="nav">
+
+<div class="grain" aria-hidden="true"></div>
+
+<aside class="rail" aria-hidden="true">
+  <div class="rail-track" id="railTrack">
+    <div class="rail-fill" id="railFill"></div>
+    <span class="rail-head" id="railHead"></span>
+  </div>
+  <div class="rail-tc" id="railTc">00:00:00</div>
+  <div class="rail-mark">reel 01</div>
+</aside>
+
+<header class="nav" id="nav">
   <div class="wrap nav-in">
-    <a class="row" href="/" style="gap:10px;font-weight:700">
-      <img class="brand-mark" src="/assets/logo-mark.png" alt="Viora AI"><span>Viora AI</span>
+    <a class="brand" href="/" aria-label="Viora AI 首页">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <path d="M3.5 3.5h10.5v6.5M3.5 20.5h10.5V14M20.5 3.5H17v6.5M20.5 20.5H17V14"/>
+        <circle cx="17" cy="12" r="1.35" fill="currentColor" stroke="none"/>
+      </svg>
+      <span>Viora<em>AI</em></span>
     </a>
-    <nav class="nav-links">
-      <a href="#features">能力</a>
-      <a href="#how">怎么用</a>
-      <a href="#pricing">价格</a>
+    <nav class="nlinks" aria-label="主导航">
+      <a href="#works">作品</a>
+      <a href="#craft">能力</a>
+      <a href="#how">用法</a>
+      <a href="#price">价格</a>
       <a href="/download">客户端</a>
     </nav>
-    <div style="flex:1"></div>
-    <a class="btn btn-sm" href="/login" id="navLogin">登录</a>
-    <a class="btn btn-sm btn-primary" href="/register" id="navGo">免费开始</a>
+    <div class="nav-sp"></div>
+    <a class="tlink" href="/login" id="navLogin">登录</a>
+    <a class="btn-solid" href="/register" id="navGo">开始生成</a>
   </div>
 </header>
 
+<main>
+
 <section class="hero">
-  <div class="wrap hero-grid">
-    <div>
-      <div class="eyebrow">✦ AI 视频生成 · 按条计费</div>
-      <h1>把一句话，<br>变成<em>能发的艺术品</em>。</h1>
+  <div class="wrap hero-in">
+    <div class="hero-copy">
+      <h1 class="hh">
+        <span class="ln"><i>写下镜头，</i></span>
+        <span class="ln"><i>收下成片。</i></span>
+      </h1>
       <p class="lead">
-        写一段画面描述，或上传一张首帧图，几十秒后拿到一条可直接发布的竖屏视频。
-        不用订阅、不用装环境，扫码充值，积分永不过期。
+        一段文字，或一张首帧图。几十秒后拿到一条 9:16 竖屏成片，1080p 起，直接能发。
+        不订阅、不绑卡，按条计费，积分不过期。
       </p>
-      <div class="hero-cta">
-        <a class="btn btn-primary btn-lg" href="/register">免费试用</a>
-        <a class="btn btn-lg" href="#pricing">看价格</a>
-      </div>
-      <div class="hero-meta">
-        <div><b>9:16 / 16:9</b><span>竖屏横屏</span></div>
-        <div><b>1080p · 2K</b><span>两档清晰度</span></div>
-        <div><b>10 积分</b><span>5 秒 1080p</span></div>
-        <div><b>5 积分</b><span>一张图</span></div>
-      </div>
+
+      <form class="pbar" id="pbar" novalidate>
+        <input id="prompt" type="text" autocomplete="off" aria-label="描述你想要的画面">
+        <span class="ph" id="ph" aria-hidden="true"><b id="phText"></b><span class="caret"></span></span>
+        <span class="hint" aria-hidden="true">描述你想要的画面…</span>
+        <button class="btn-solid" type="submit">生成</button>
+      </form>
+
+      <ul class="facts">
+        <li>竖屏 <b>9:16</b> 与横屏 <b>16:9</b></li>
+        <li><b>1080p</b> 与 <b>2K</b></li>
+        <li>5 秒 <b>10 积分</b></li>
+        <li>失败自动退</li>
+      </ul>
     </div>
-    <div class="showcase">
-      <div class="vcard">
-        <span class="chip">9:16 · 1080p</span>
-        <img src="/assets/showcase/coffee.jpg" alt="咖啡产品广告生成样例" loading="lazy">
-        <span class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.2v13.6L19 12z"/></svg></span>
-        <div class="lbl">镜头环绕咖啡杯，暖光，木质桌面</div>
+
+    <div class="hero-frame">
+      <div class="fm" id="fm">
+        <span class="cm a"></span><span class="cm b"></span>
+        <span class="cm c"></span><span class="cm d"></span>
+        <div class="fm-hud"><span>9:16</span><span>00:10</span></div>
+        <video id="heroVid" src="/assets/showcase/series/v01.mp4"
+               poster="/assets/showcase/series/p01.webp"
+               muted loop playsinline preload="auto" aria-label="一条由一句话生成的竖屏短片"></video>
+        <div class="fm-prog"><i id="fmBar"></i><em id="fmPct">0%</em></div>
       </div>
-      <div class="vcard">
-        <span class="chip">9:16 · 2K</span>
-        <img src="/assets/showcase/presenter.jpg" alt="人物口播生成样例" loading="lazy">
-        <span class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.2v13.6L19 12z"/></svg></span>
-        <div class="lbl">中景固定机位，自然讲话，柔光</div>
-      </div>
+      <p class="fm-cap">年轻东亚女性，素颜，奶油色毛衣，坐在明亮窗边，轻轻眨眼，发丝微动</p>
     </div>
   </div>
 </section>
 
-<section class="section alt" id="features">
+<section class="sec" id="works">
   <div class="wrap">
     <div class="sec-head">
-      <h2>为「要发出去」而做的工具</h2>
-      <p>不是炫技的 demo，是每天要出量的人真正用得上的流水线。</p>
+      <h2>先看成片，<br>再看价格。</h2>
+      <p>下面全部由文字生成：没有拍摄、没有模特、没有后期。每一条的提示词就写在作品下面，原样抄走，改成自己的就能用。</p>
     </div>
-    <div class="feats">
-      <div class="feat">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v18M3 12h18"/></svg></div>
-        <h3>文生 / 图生都能做</h3>
-        <p>纯文字描述即可出片；也可以上传首帧参考图，让人物、构图、产品延续你的素材。</p>
+
+    <div class="sub">
+      <span class="t">静帧</span><span class="c">09</span>
+      <span class="l"></span><span class="h">写实极简，无字无水印</span>
+    </div>
+
+    <!-- 行 1：3:4 / 4:3 / 3:2 -->
+    <div class="jrow">
+      <figure class="jitem" style="--r:.75">
+        <button class="frame" type="button" data-type="image" data-src="/assets/showcase/series/p01.webp"
+                data-cn="写实极简人像，一位年轻东亚女性，素颜自然妆，真实皮肤质感，米色纯色背景，侧面柔和窗光，神情平静，奶油色毛衣，画面大量留白，竖版构图"
+                data-en="Photorealistic minimalist portrait of a young East Asian woman, natural makeup, real skin texture, plain warm beige studio background, soft window light from the side, calm gentle expression, simple cream sweater, generous negative space, vertical composition"
+                aria-label="放大查看：窗边的她">
+          <img src="/assets/showcase/series/p01.webp" alt="窗边的她：写实极简人像，米色背景与侧面窗光" loading="lazy">
+        </button>
+        <figcaption class="fc">
+          <div class="r1"><span class="t">窗边的她</span><span class="k">人像</span></div>
+          <p class="q">写实极简人像，年轻东亚女性，素颜自然妆，米色纯色背景，侧面柔和窗光，奶油色毛衣</p>
+        </figcaption>
+      </figure>
+
+      <figure class="jitem" style="--r:1.333">
+        <button class="frame" type="button" data-type="image" data-src="/assets/showcase/series/p02.webp"
+                data-cn="写实极简风景，清晨雾气弥漫的湖面，远处一叶小木舟，层叠的远山在雾中若隐若现，灰蓝色调，天空与水面大量留白，横版构图"
+                data-en="Photorealistic minimalist landscape at dawn, a calm misty lake with one tiny wooden boat far away, layered soft mountain silhouettes fading into fog, pale grey-blue palette, vast negative space of sky and water, horizontal composition"
+                aria-label="放大查看：雾湖孤舟">
+          <img src="/assets/showcase/series/p02.webp" alt="雾湖孤舟：清晨雾中的湖面与远处的小木舟" loading="lazy">
+        </button>
+        <figcaption class="fc">
+          <div class="r1"><span class="t">雾湖孤舟</span><span class="k">风景</span></div>
+          <p class="q">清晨雾气弥漫的湖面，远处一叶小木舟，层叠远山在雾中若隐若现，灰蓝色调</p>
+        </figcaption>
+      </figure>
+
+      <figure class="jitem" style="--r:1.5">
+        <button class="frame" type="button" data-type="image" data-src="/assets/showcase/series/p04.webp"
+                data-cn="写实极简产品摄影，一只琥珀色玻璃精华瓶立在浅色石台上，米色纯色墙面，墙上投下柔和的树叶影子，温暖日光，大量留白，横版构图"
+                data-en="Photorealistic minimalist product photo, a single amber glass skincare bottle standing on a light stone pedestal against a plain beige wall, soft leaf shadows cast on the wall, warm daylight, lots of negative space, horizontal composition"
+                aria-label="放大查看：琥珀瓶">
+          <img src="/assets/showcase/series/p04.webp" alt="琥珀瓶：石台上的琥珀色玻璃精华瓶与树叶影" loading="lazy">
+        </button>
+        <figcaption class="fc">
+          <div class="r1"><span class="t">琥珀瓶</span><span class="k">产品</span></div>
+          <p class="q">琥珀色玻璃精华瓶立在浅色石台上，米色墙面，柔和的树叶影子，温暖日光</p>
+        </figcaption>
+      </figure>
+    </div>
+
+    <!-- 行 2：4:3 / 1.73 / 0.94 -->
+    <div class="jrow">
+      <figure class="jitem" style="--r:1.333">
+        <button class="frame" type="button" data-type="image" data-src="/assets/showcase/series/p03.webp"
+                data-cn="写实极简建筑摄影，一面弧形白色混凝土建筑立在清澈的浅蓝天空下，墙角一棵小绿树，线条干净，天空大量留白，明亮日光，横版构图"
+                data-en="Photorealistic minimalist architecture photo, a smooth curved white concrete building against a clear pale blue sky, one small green tree at its base, strong clean lines and large areas of empty sky, bright daylight, horizontal composition"
+                aria-label="放大查看：白墙与蓝天">
+          <img src="/assets/showcase/series/p03.webp" alt="白墙与蓝天：弧形白色混凝土建筑与墙角小树" loading="lazy">
+        </button>
+        <figcaption class="fc">
+          <div class="r1"><span class="t">白墙与蓝天</span><span class="k">建筑</span></div>
+          <p class="q">弧形白色混凝土建筑，清澈浅蓝天空，墙角一棵小绿树，线条干净，明亮日光</p>
+        </figcaption>
+      </figure>
+
+      <figure class="jitem" style="--r:1.73">
+        <button class="frame" type="button" data-type="image" data-src="/assets/showcase/series/p07.webp"
+                data-cn="写实极简室内摄影，明亮的客厅一角，米色布艺沙发，原木小边几上放着插了一枝绿枝的花瓶，白墙，大窗柔光，干净不杂乱"
+                data-en="Photorealistic minimalist interior photo of a bright living room corner, beige fabric sofa, small round wooden side table with a vase holding a single branch, white walls, soft daylight through a large window"
+                aria-label="放大查看：安静的角落">
+          <img src="/assets/showcase/series/p07.webp" alt="安静的角落：明亮客厅一角的米色沙发与木边几" loading="lazy">
+        </button>
+        <figcaption class="fc">
+          <div class="r1"><span class="t">安静的角落</span><span class="k">室内</span></div>
+          <p class="q">明亮客厅一角，米色布艺沙发，原木边几上插一枝绿枝的花瓶，白墙大窗柔光</p>
+        </figcaption>
+      </figure>
+
+      <figure class="jitem" style="--r:.94">
+        <button class="frame" type="button" data-type="image" data-src="/assets/showcase/series/p09.webp"
+                data-cn="写实极简宠物摄影，一只橘猫蜷在白色窗台上睡午觉，阳光洒在毛上，白色薄纱窗帘，安静治愈"
+                data-en="Photorealistic minimalist photo of an orange tabby cat curled up asleep on a white windowsill, sunlight on its fur, white sheer curtain, quiet and healing mood"
+                aria-label="放大查看：午睡">
+          <img src="/assets/showcase/series/p09.webp" alt="午睡：蜷在白色窗台上的橘猫" loading="lazy">
+        </button>
+        <figcaption class="fc">
+          <div class="r1"><span class="t">午睡</span><span class="k">宠物</span></div>
+          <p class="q">橘猫蜷在白色窗台上睡午觉，阳光洒在毛上，白色薄纱窗帘，安静治愈</p>
+        </figcaption>
+      </figure>
+    </div>
+
+    <!-- 行 3：3:2 / 1.17 / 0.54 -->
+    <div class="jrow">
+      <figure class="jitem" style="--r:1.48">
+        <button class="frame" type="button" data-type="image" data-src="/assets/showcase/series/p05.webp"
+                data-cn="写实极简美食摄影，俯拍，一杯黑咖啡和一只可颂放在白色小碟上，浅色木桌，柔和的清晨窗光，大量留白"
+                data-en="Photorealistic minimalist food photo from above, one cup of black coffee and a single croissant on a small white plate, plain light wooden table, soft morning window light, lots of empty space"
+                aria-label="放大查看：晨光早餐">
+          <img src="/assets/showcase/series/p05.webp" alt="晨光早餐：俯拍的黑咖啡与可颂" loading="lazy">
+        </button>
+        <figcaption class="fc">
+          <div class="r1"><span class="t">晨光早餐</span><span class="k">美食</span></div>
+          <p class="q">俯拍，一杯黑咖啡和一只可颂放在白色小碟上，浅色木桌，柔和的清晨窗光</p>
+        </figcaption>
+      </figure>
+
+      <figure class="jitem" style="--r:1.17">
+        <button class="frame" type="button" data-type="image" data-src="/assets/showcase/series/p06.webp"
+                data-cn="写实极简宠物摄影，一只橘猫坐在白色窗台上看向窗外，明亮的白色房间，薄纱窗帘，柔和日光，大量留白"
+                data-en="Photorealistic minimalist photo of an orange tabby cat sitting on a white windowsill looking outside, bright white room, sheer curtain, soft daylight, generous negative space"
+                aria-label="放大查看：窗台上的橘猫">
+          <img src="/assets/showcase/series/p06.webp" alt="窗台上的橘猫：白房间与薄纱窗帘" loading="lazy">
+        </button>
+        <figcaption class="fc">
+          <div class="r1"><span class="t">窗台上的橘猫</span><span class="k">宠物</span></div>
+          <p class="q">橘猫坐在白色窗台上看向窗外，明亮白色房间，薄纱窗帘，柔和日光</p>
+        </figcaption>
+      </figure>
+
+      <figure class="jitem" style="--r:.543">
+        <button class="frame" type="button" data-type="image" data-src="/assets/showcase/series/p08.webp"
+                data-cn="写实极简城市摄影，清晨几乎无人的干净街道，浅色建筑外墙，一个行人远远走过，柔和的粉彩晨光，长长的影子，大量留白"
+                data-en="Photorealistic minimalist city photo at dawn, an almost empty clean street with soft pastel light, one person walking far away, pale building facades, long soft shadows, large negative space"
+                aria-label="放大查看：清晨空街">
+          <img src="/assets/showcase/series/p08.webp" alt="清晨空街：浅色建筑与远处的行人" loading="lazy">
+        </button>
+        <figcaption class="fc">
+          <div class="r1"><span class="t">清晨空街</span><span class="k">城市</span></div>
+          <p class="q">清晨几乎无人的干净街道，浅色建筑外墙，一个行人远远走过，粉彩晨光</p>
+        </figcaption>
+      </figure>
+    </div>
+
+    <div class="sub">
+      <span class="t">动态</span><span class="c">05</span>
+      <span class="l"></span><span class="h">每条 10 秒　悬停即播　点击看大图</span>
+    </div>
+
+    <!-- 视频行 1：9:16 + 16:9 + 16:9 -->
+    <div class="jrow">
+      <figure class="jitem" style="--r:.5625">
+        <button class="frame" type="button" data-type="video" data-src="/assets/showcase/series/v01.mp4"
+                data-cn="年轻东亚女性，素颜，奶油色毛衣，坐在明亮窗边，轻轻眨眼，发丝微动，淡淡平静微笑，动作极慢极小"
+                data-en="Young East Asian woman, no makeup, cream sweater, sitting by a bright window, slow blink, hair gently moving, faint calm smile, very slow subtle motion"
+                aria-label="播放：人像微动">
+          <video class="vfilm" src="/assets/showcase/series/v01.mp4" poster="/assets/showcase/series/p01.webp"
+                 muted loop playsinline preload="none"></video>
+          <span class="vplay" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z"/></svg></span>
+        </button>
+        <figcaption class="fc">
+          <div class="r1"><span class="t">人像微动</span><span class="k">9:16 / 10s</span></div>
+          <p class="q">年轻东亚女性，素颜，奶油色毛衣，坐在明亮窗边，轻轻眨眼，发丝微动</p>
+        </figcaption>
+      </figure>
+
+      <figure class="jitem" style="--r:1.778">
+        <button class="frame" type="button" data-type="video" data-src="/assets/showcase/series/v02.mp4"
+                data-cn="清晨雾湖，层叠远山隐入雾中，远处一叶小舟，雾气缓缓流动，水面泛起几乎察觉不到的涟漪"
+                data-en="Misty lake at dawn, layered distant mountains fading into fog, a tiny boat far away, fog drifting slowly, barely perceptible ripples on the water"
+                aria-label="播放：雾湖清晨">
+          <video class="vfilm" src="/assets/showcase/series/v02.mp4" poster="/assets/showcase/series/p02.webp"
+                 muted loop playsinline preload="none"></video>
+          <span class="vplay" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z"/></svg></span>
+        </button>
+        <figcaption class="fc">
+          <div class="r1"><span class="t">雾湖清晨</span><span class="k">16:9 / 10s</span></div>
+          <p class="q">清晨雾湖，层叠远山隐入雾中，远处一叶小舟，雾气缓缓流动，水面微起涟漪</p>
+        </figcaption>
+      </figure>
+
+      <figure class="jitem" style="--r:1.778">
+        <button class="frame" type="button" data-type="video" data-src="/assets/showcase/series/v03.mp4"
+                data-cn="弧形白色混凝土建筑，浅蓝晴空，墙角一棵绿树，云影缓缓滑过白墙，树叶轻轻摇曳"
+                data-en="Curved white concrete building under a pale blue sky, a green tree at its base, cloud shadows sliding slowly across the white wall, leaves swaying gently"
+                aria-label="播放：建筑光影">
+          <video class="vfilm" src="/assets/showcase/series/v03.mp4" poster="/assets/showcase/series/p03.webp"
+                 muted loop playsinline preload="none"></video>
+          <span class="vplay" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z"/></svg></span>
+        </button>
+        <figcaption class="fc">
+          <div class="r1"><span class="t">建筑光影</span><span class="k">16:9 / 10s</span></div>
+          <p class="q">弧形白色混凝土建筑，浅蓝晴空，墙角一棵绿树，云影缓缓滑过白墙，树叶摇曳</p>
+        </figcaption>
+      </figure>
+    </div>
+
+    <!-- 视频行 2：16:9 + 16:9 -->
+    <div class="jrow">
+      <figure class="jitem" style="--r:1.778">
+        <button class="frame" type="button" data-type="video" data-src="/assets/showcase/series/v04.mp4"
+                data-cn="俯拍，一杯黑咖啡和一只可颂在浅色木桌上，柔和晨光，咖啡表面热气缓缓升起"
+                data-en="Overhead shot, a cup of black coffee and a croissant on a light wooden table, soft morning light, steam rising slowly from the coffee"
+                aria-label="播放：咖啡晨光">
+          <video class="vfilm" src="/assets/showcase/series/v04.mp4" poster="/assets/showcase/series/p05.webp"
+                 muted loop playsinline preload="none"></video>
+          <span class="vplay" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z"/></svg></span>
+        </button>
+        <figcaption class="fc">
+          <div class="r1"><span class="t">咖啡晨光</span><span class="k">16:9 / 10s</span></div>
+          <p class="q">俯拍，一杯黑咖啡和一只可颂在浅色木桌上，柔和晨光，热气缓缓升起</p>
+        </figcaption>
+      </figure>
+
+      <figure class="jitem" style="--r:1.778">
+        <button class="frame" type="button" data-type="video" data-src="/assets/showcase/series/v05.mp4"
+                data-cn="橘猫坐在白色窗台上望向窗外，尾巴尖缓缓摆动，耳朵偶尔轻颤，旁边薄纱窗帘被微风轻拂"
+                data-en="Orange tabby cat sitting on a white windowsill looking outside, tail tip swaying slowly, ears twitching now and then, sheer curtain stirring in a light breeze"
+                aria-label="播放：窗台橘猫">
+          <video class="vfilm" src="/assets/showcase/series/v05.mp4" poster="/assets/showcase/series/p06.webp"
+                 muted loop playsinline preload="none"></video>
+          <span class="vplay" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z"/></svg></span>
+        </button>
+        <figcaption class="fc">
+          <div class="r1"><span class="t">窗台橘猫</span><span class="k">16:9 / 10s</span></div>
+          <p class="q">橘猫坐在白色窗台上望向窗外，尾巴尖缓缓摆动，耳朵偶尔轻颤，窗帘被微风轻拂</p>
+        </figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="craft">
+  <div class="wrap cap-grid">
+    <div class="cap-left">
+      <h2>能不能干活，<br>看这六处。</h2>
+      <p>好看是基本要求。真正决定它能不能每天用的，是排队、计费、失败处理这些没人愿意讲的细节。</p>
+    </div>
+    <div class="cap-list">
+      <div class="cap-row">
+        <h3>文字和图，一个入口</h3>
+        <p>纯描述即可出片；也可以上传一张首帧，让人物、产品、构图接着你的素材往下走。</p>
       </div>
-      <div class="feat">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></div>
-        <h3>排队与进度都看得见</h3>
-        <p>任务状态实时刷新，前面还有几个、渲染到几成，一眼就知道，不用反复问客服。</p>
+      <div class="cap-row">
+        <h3>排队第几，渲染几成</h3>
+        <p>前面还有几条、现在到百分之几，页面上实时刷新，不用来回问客服。</p>
       </div>
-      <div class="feat">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2 19 6v5.4c0 4.3-2.9 7.6-7 9.4-4.1-1.8-7-5.1-7-9.4V6z"/><path d="m9.2 12 2 2 3.6-3.8"/></svg></div>
-        <h3>失败自动退积分</h3>
-        <p>提交先冻结、成功才扣费。渲染失败或超时，积分原路退回，账目每一笔都能查。</p>
+      <div class="cap-row">
+        <h3>先冻结，出片才扣费</h3>
+        <p>提交时冻结积分，成功才结算。渲染失败或超时，积分原路退回，每一笔都能在账目里查到。</p>
       </div>
-      <div class="feat">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18"/></svg></div>
-        <h3>支付宝扫码充值</h3>
-        <p>不需要绑卡、不用月付。选套餐 → 扫码 → 秒到账，积分长期有效。</p>
+      <div class="cap-row">
+        <h3>扫码充值，到账即用</h3>
+        <p>支付宝当面付，不绑卡、不月付。选套餐、扫码、到账，积分长期有效。</p>
       </div>
-      <div class="feat">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="m4.5 17 4.2-4.2a2 2 0 0 1 2.8 0L16 17.5"/></svg></div>
-        <h3>成品自动归档</h3>
-        <p>生成过的作品按时间归档，随时回看、下载、删掉不满意的，不占你本地空间。</p>
+      <div class="cap-row">
+        <h3>成片按时间归档</h3>
+        <p>生成过的作品都在库里，随时回看、下载、删掉不满意的，不占你本地空间。</p>
       </div>
-      <div class="feat">
-        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5h11l3 3v12H5z"/><path d="M8.5 9h7M8.5 13h7M8.5 17h4"/></svg></div>
+      <div class="cap-row">
         <h3>顺手给出发布文案</h3>
-        <p>成片会附带一段可直接用的标题、正文与话题标签，省掉二次创作的时间。</p>
+        <p>成片附带标题、正文和话题标签，复制就能发，省掉二次创作的时间。</p>
       </div>
-    </div>
-
-    <div class="sec-head" style="margin:64px auto 26px">
-      <h2 style="font-size:26px">这些画面都是一句话生成的</h2>
-      <p>没有拍摄、没有模特、没有后期。下面每一张，提示词都写在你看到的那一行里。</p>
-    </div>
-    <div class="wall">
-      <figure class="shot">
-        <span class="tag">9:16</span>
-        <img src="/assets/showcase/coffee.jpg" alt="咖啡产品广告" loading="lazy">
-        <figcaption><b>产品广告</b><span>镜头环绕咖啡杯，暖光，木质桌面</span></figcaption>
-      </figure>
-      <figure class="shot">
-        <span class="tag">9:16</span>
-        <img src="/assets/showcase/presenter.jpg" alt="人物口播" loading="lazy">
-        <figcaption><b>人物口播</b><span>中景固定机位，自然讲话，柔光</span></figcaption>
-      </figure>
-      <figure class="shot">
-        <span class="tag">2K</span>
-        <img src="/assets/showcase/city.jpg" alt="城市夜景空镜" loading="lazy">
-        <figcaption><b>风景空镜</b><span>无人机前推，蓝调时刻，霓虹与车流</span></figcaption>
-      </figure>
-      <figure class="shot">
-        <span class="tag">9:16</span>
-        <img src="/assets/showcase/cosmetics.jpg" alt="美妆产品特写" loading="lazy">
-        <figcaption><b>美妆特写</b><span>精华瓶置于湿石面，侧逆光，水滴反光</span></figcaption>
-      </figure>
-      <figure class="shot">
-        <span class="tag">9:16</span>
-        <img src="/assets/showcase/sneaker.jpg" alt="运动鞋广告" loading="lazy">
-        <figcaption><b>鞋服带货</b><span>跑鞋悬浮，水花飞溅，橙黑渐变背景</span></figcaption>
-      </figure>
-      <figure class="shot">
-        <span class="tag">2K</span>
-        <img src="/assets/showcase/ramen.jpg" alt="美食特写" loading="lazy">
-        <figcaption><b>餐饮探店</b><span>拉面特写，筷子挑起，热气升腾</span></figcaption>
-      </figure>
-    </div>
-    <div class="center" style="margin-top:26px">
-      <a class="btn btn-lg" href="/register">用你的第一句话试试 →</a>
     </div>
   </div>
 </section>
 
-<section class="section" id="how">
+<section class="sec" id="how">
   <div class="wrap">
     <div class="sec-head">
-      <h2>三步出片</h2>
-      <p>从注册到拿到第一条视频，通常不超过三分钟。</p>
+      <h2>三步，三分钟。</h2>
+      <p>从注册到拿到第一条片子，通常不超过三分钟。下面是这条时间轴。</p>
     </div>
     <div class="steps">
       <div class="step">
-        <div class="n">1</div>
-        <h3>写描述，选参数</h3>
-        <p>一句话说清主体、动作、镜头和光线。竖屏横屏、时长、清晰度自己定，价格实时显示。</p>
+        <span class="tc">00:00</span>
+        <h3>写描述，定参数</h3>
+        <p>主体、动作、镜头、光线，一句话说清。竖屏横屏、时长、清晰度自己选，价格实时显示。</p>
       </div>
       <div class="step">
-        <div class="n">2</div>
-        <h3>点生成，等出片</h3>
-        <p>任务进入队列，页面显示排队位置与渲染进度。整个过程你可以去做别的事。</p>
+        <span class="tc">00:40</span>
+        <h3>提交，等出片</h3>
+        <p>任务进队列，页面显示排队位置和渲染进度。这段时间你可以去干别的。</p>
       </div>
       <div class="step">
-        <div class="n">3</div>
+        <span class="tc">01:20</span>
         <h3>下载，直接发</h3>
-        <p>成片在线预览，一键下载 MP4。附带的文案可以复制到抖音、快手、视频号直接用。</p>
+        <p>在线预览成片，一键下载 MP4。附带文案复制到抖音、快手、视频号直接发。</p>
       </div>
     </div>
   </div>
 </section>
 
-<section class="section alt" id="pricing">
+<section class="sec" id="price">
   <div class="wrap">
     <div class="sec-head">
-      <h2>1 元 = 10 积分，按条计费</h2>
-      <p>图片 5 积分／张。视频默认 1080p：5 秒 10 积分、10 秒 20 积分；<b>2K 超清为 1080p 的两倍积分</b>。<br>
-        充值单笔 <b>满 200 元赠 10%</b>、<b>满 1000 元赠 20%</b>。积分长期有效，生成失败不计费。</p>
+      <h2>1 元 10 个积分，<br>按条结算。</h2>
+      <p>图片 5 积分一张。视频 1080p：5 秒 10 积分、10 秒 20 积分；
+        <b>2K 按 1080p 的两倍计</b>。单笔满 200 元赠 10%，满 1000 元赠 20%。</p>
     </div>
-    <div class="price-grid" id="prices">
-      <div class="skel" style="height:190px"></div>
-      <div class="skel" style="height:190px"></div>
-      <div class="skel" style="height:190px"></div>
-      <div class="skel" style="height:190px"></div>
+
+    <div class="rates" id="rates">
+      <div class="rate-head">
+        <span>套餐</span><span>到账积分</span><span>约合 5 秒片</span><span>价格</span>
+      </div>
+      <div class="rate">
+        <div class="c1"><span class="nm">体验包</span></div>
+        <div class="c2">100<small>积分</small></div>
+        <div class="c3">10 条</div>
+        <div class="c4">10<small>元</small></div>
+      </div>
+    </div>
+
+    <p class="rate-note">
+      <span>积分不过期</span>
+      <span>生成失败不计费</span>
+      <span>企业批量可开票</span>
+    </p>
+  </div>
+</section>
+
+<section class="end">
+  <div class="wrap end-in">
+    <h2>先做两条，<br>再决定要不要充值。</h2>
+    <p>注册就送体验积分，够跑两条 5 秒 1080p。出片满意再充值，不满意随时停。</p>
+    <div class="end-cta">
+      <a class="btn-solid btn-lg" href="/register" id="endGo">免费注册</a>
+      <a class="tlink" href="/login">已有账号，登录</a>
     </div>
   </div>
 </section>
 
-<section class="section">
-  <div class="wrap">
-    <div class="cta">
-      <div>
-        <h2>先免费试两条，再说要不要充值</h2>
-        <p>注册即送体验积分，出片满意再充值。不满意随时停。</p>
-      </div>
-      <div class="row" style="gap:10px">
-        <a class="btn btn-lg" href="/login" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.22);color:#fff">已有账号</a>
-        <a class="btn btn-lg btn-primary" href="/register">免费注册</a>
-      </div>
-    </div>
-  </div>
-</section>
+</main>
 
 <footer class="foot">
-  <div class="wrap in">
-    <div>© 2026 Viora AI · AI 生成内容请遵守各平台规范</div>
-    <div class="row" style="gap:18px">
-      <a href="/download">桌面客户端</a>
-      <a href="/login">登录</a>
-      <a href="/register">注册</a>
-    </div>
+  <div class="wrap foot-in">
+    <span>Viora AI</span>
+    <span class="cc">© 2026 · AI 生成内容请遵守各平台发布规范</span>
+    <span class="sp"></span>
+    <a href="/download">桌面客户端</a>
+    <a href="/login">登录</a>
+    <a href="/register">注册</a>
   </div>
 </footer>
 
-<!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
+<!-- 大图 / 视频查看 -->
+<div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-label="作品大图">
+  <button class="lb-x" id="lbX" type="button" aria-label="关闭">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+      <path d="M6 6l12 12M18 6L6 18"/>
+    </svg>
+  </button>
+  <div class="lb-box">
+    <div class="lb-media" id="lbMedia"></div>
+    <div class="lb-cap">
+      <span class="lb-k">提示词</span>
+      <p class="lb-cn" id="lbCn"></p>
+      <p class="lb-en" id="lbEn"></p>
+    </div>
+  </div>
+</div>
+
 <script src="/config.js"></script>
 <script src="/assets/js/core.js?v=20261025"></script>
 <script>
-(async function () {
-  try {
-    const r = await get('/api/auth/me');
-    if (r && r.user) {
-      $('#navLogin').textContent = '进入工作台';
-      $('#navLogin').href = '/studio';
-      $('#navGo').textContent = r.user.username || '工作台';
-      $('#navGo').href = '/studio';
-    }
-  } catch (e) { /* 未登录，保持默认 */ }
-
-  try {
-    const r = await fetch('/api/wallet/packages').then((x) => (x.ok ? x.json() : null));
-    if (r && r.items && r.items.length) {
-      $('#prices').innerHTML = r.items.map((p, i) => `
-        <div class="price ${p.tag ? 'hot' : ''}">
-          ${p.tag ? `<div class="rtag">${p.tag}</div>` : ''}
-          <div class="pn">${p.name}</div>
-          <div class="pp">${p.total_points}<small> 积分</small></div>
-          <div class="pd">≈ ${Math.floor(p.total_points / 10)} 条 10 秒视频${p.bonus ? ` · 含赠送 ${p.bonus}` : ''}</div>
-          <div class="py">${p.price_yuan}<small> 元</small></div>
-        </div>`).join('');
-    } else throw new Error('no packages');
-  } catch (e) {
-    $('#prices').innerHTML = `
-      <div class="price"><div class="pn">体验包</div><div class="pp">100<small> 积分</small></div>
-        <div class="pd">= 10 条 5 秒视频 / 20 张图</div><div class="py">10.00<small> 元</small></div></div>
-      <div class="price hot"><div class="rtag">满 200 赠 10%</div><div class="pn">标准包</div>
-        <div class="pp">2200<small> 积分</small></div><div class="pd">含赠送 200 · ≈ 220 条 10 秒视频</div>
-        <div class="py">200.00<small> 元</small></div></div>
-      <div class="price"><div class="pn">专业包</div><div class="pp">5750<small> 积分</small></div>
-        <div class="pd">含赠送 750 · ≈ 575 条 10 秒视频</div><div class="py">500.00<small> 元</small></div></div>
-      <div class="price"><div class="pn">工作室包</div><div class="pp">12000<small> 积分</small></div>
-        <div class="pd">含赠送 2000 · ≈ 1200 条 10 秒视频</div><div class="py">1000.00<small> 元</small></div></div>`;
-  }
-})();
-</script>
-
-<script>
-/* 导航：锚点平滑滚动 + 当前位置高亮 + 顶部阅读进度 */
 (function () {
-  const nav = document.querySelector('.nav');
-  // 落点 = 导航栏实际高度，滚动后区块顶边正好贴在导航栏下沿
-  const navH = () => (nav ? nav.getBoundingClientRect().height : 64);
-  const links = Array.from(document.querySelectorAll('.nav-links a[href^="#"]'));
-  const targets = links.map((a) => document.querySelector(a.getAttribute('href'))).filter(Boolean);
-  const bar = document.getElementById('scrollBar');
-  let ticking = false;
-  let raf = 0;
+  'use strict';
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var root = document.documentElement;
+  var $ = function (s) { return document.querySelector(s); };
 
-  const easeInOutCubic = (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-  const maxScroll = () => document.documentElement.scrollHeight - window.innerHeight;
+  /* ---------------------------------------------------------------- 登录态 */
+  (async function () {
+    try {
+      var r = await get('/api/auth/me');
+      if (r && r.user) {
+        var a = $('#navLogin'), b = $('#navGo'), c = $('#endGo');
+        if (a) { a.textContent = '进入工作台'; a.href = '/studio'; }
+        if (b) { b.textContent = '工作台'; b.href = '/studio'; }
+        if (c) { c.textContent = '进入工作台'; c.href = '/studio'; }
+      }
+    } catch (e) { /* 未登录，保持默认 */ }
+  })();
 
-  function scrollToSection(el) {
-    const goal = Math.max(0, Math.min(maxScroll(),
-      el.getBoundingClientRect().top + window.scrollY - navH()));
-    const from = window.scrollY;
-    const dist = goal - from;
-    // 有点距离才动画；已经很近就直接落位，避免「点了没反应」的错觉
+  /* ---------------------------------------------------------------- 开场：一次完整的「渲染」 */
+  var heroVid = $('#heroVid');
+  function boot() {
+    var fm = $('#fm'), bar = $('#fmBar'), pct = $('#fmPct');
+    var play = function () {
+      if (!heroVid) return;
+      var p = heroVid.play();
+      if (p && p.catch) p.catch(function () { /* 自动播放被拦，保留首帧 */ });
+    };
+
+    if (reduce) {
+      if (fm) { fm.classList.add('lit', 'done'); }
+      root.classList.add('ready');
+      typePrompt(true);
+      play();
+      return;
+    }
+
+    root.classList.add('ready');
+
+    var t0 = performance.now(), DUR = 900;
+    (function tick(now) {
+      var p = Math.min(1, (now - t0) / DUR);
+      var e = 1 - Math.pow(1 - p, 3);
+      if (bar) bar.style.width = (e * 100).toFixed(1) + '%';
+      if (pct) pct.textContent = Math.round(e * 100) + '%';
+      if (p < 1) requestAnimationFrame(tick);
+      else {
+        if (fm) fm.classList.add('lit');
+        play();
+        setTimeout(function () { if (fm) fm.classList.add('done'); }, 460);
+      }
+    })(t0);
+
+    setTimeout(typePrompt, 1180);
+  }
+
+  /* 提示词逐字打出来：这是产品本身的样子，比两个按钮更能说明问题 */
+  var typingTimer = null;
+  function typePrompt(instant) {
+    var el = $('#phText');
+    var text = '镜头缓慢环绕咖啡杯，暖光，木质桌面，浅景深';
+    if (!el) return;
+    if (instant) { el.textContent = text; return; }
+    var i = 0;
+    (function step() {
+      if (i > text.length) return;
+      el.textContent = text.slice(0, i);
+      i++;
+      typingTimer = setTimeout(step, 42);
+    })();
+  }
+
+  var promptEl = $('#prompt'), pbar = $('#pbar');
+  if (pbar) {
+    pbar.addEventListener('focusin', function () {
+      clearTimeout(typingTimer);
+    });
+    if (promptEl) {
+      promptEl.addEventListener('input', function () {
+        pbar.classList.toggle('has-val', !!promptEl.value);
+      });
+    }
+    pbar.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var v = (promptEl && promptEl.value || '').trim();
+      try { if (v) sessionStorage.setItem('viora:prompt-draft', v); } catch (err) {}
+      var logged = $('#navGo') && $('#navGo').href.indexOf('/studio') > -1;
+      location.href = logged ? '/studio' : '/register';
+    });
+  }
+
+  /* ---------------------------------------------------------------- 视频：悬停预览 */
+  var canHover = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+  if (canHover) {
+    document.querySelectorAll('.jitem').forEach(function (fig) {
+      var v = fig.querySelector('.vfilm');
+      if (!v) return;
+      fig.addEventListener('mouseenter', function () {
+        v.preload = 'auto';
+        var p = v.play();
+        if (p && p.catch) p.catch(function () {});
+        fig.classList.add('playing');
+      });
+      fig.addEventListener('mouseleave', function () {
+        v.pause();
+        fig.classList.remove('playing');
+      });
+    });
+  }
+
+  /* ---------------------------------------------------------------- 大图 / 视频查看 */
+  var lb = $('#lb'), lbMedia = $('#lbMedia'), lbCn = $('#lbCn'), lbEn = $('#lbEn'), lbX = $('#lbX');
+  var lastFocus = null;
+  var lbVid = null;
+
+  function openLb(btn) {
+    var type = btn.getAttribute('data-type');
+    var src = btn.getAttribute('data-src');
+    lastFocus = btn;
+    lbCn.textContent = btn.getAttribute('data-cn') || '';
+    lbEn.textContent = btn.getAttribute('data-en') || '';
+
+    if (type === 'video') {
+      lbMedia.innerHTML = '';
+      var v = document.createElement('video');
+      v.src = src;
+      v.controls = true;
+      v.autoplay = true;
+      v.loop = true;
+      v.playsInline = true;
+      v.muted = false;
+      lbMedia.appendChild(v);
+      lbVid = v;
+    } else {
+      lbMedia.innerHTML = '';
+      var img = document.createElement('img');
+      img.src = src;
+      img.alt = btn.querySelector('img') ? btn.querySelector('img').alt : '';
+      lbMedia.appendChild(img);
+    }
+
+    lb.hidden = false;
+    document.body.style.overflow = 'hidden';
+    requestAnimationFrame(function () { lb.classList.add('in'); });
+    setTimeout(function () { lbX.focus(); }, 60);
+  }
+
+  function closeLb() {
+    lb.classList.remove('in');
+    if (lbVid) { try { lbVid.pause(); } catch (e) {} }
+    setTimeout(function () {
+      lb.hidden = true;
+      lbMedia.innerHTML = '';
+      lbVid = null;
+      document.body.style.overflow = '';
+      if (lastFocus) lastFocus.focus();
+    }, 260);
+  }
+
+  document.querySelectorAll('.frame').forEach(function (b) {
+    b.addEventListener('click', function () { openLb(b); });
+  });
+  if (lbX) lbX.addEventListener('click', closeLb);
+  if (lb) lb.addEventListener('click', function (e) { if (e.target === lb) closeLb(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && lb && !lb.hidden) closeLb();
+  });
+
+  /* ---------------------------------------------------------------- 价目表 */
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function rows(items) {
+    return items.map(function (p) {
+      var pts = Number(p.total_points) || 0;
+      var n = Math.floor(pts / 10);
+      return '<div class="rate">' +
+        '<div class="c1"><span class="nm">' + esc(p.name) + '</span>' +
+          (p.tag ? '<span class="flag">' + esc(p.tag) + '</span>' : '') + '</div>' +
+        '<div class="c2">' + pts.toLocaleString('en-US') + '<small>积分</small></div>' +
+        '<div class="c3">' + n + ' 条</div>' +
+        '<div class="c4">' + esc(String(p.price_yuan)) + '<small>元</small></div>' +
+      '</div>';
+    }).join('');
+  }
+
+  (async function () {
+    var box = $('#rates');
+    if (!box) return;
+    var head = box.querySelector('.rate-head').outerHTML;
+    try {
+      var r = await fetch(apiUrl('/api/wallet/packages')).then(function (x) {
+        return x.ok ? x.json() : null;
+      });
+      if (!r || !r.items || !r.items.length) throw new Error('empty');
+      box.innerHTML = head + rows(r.items);
+    } catch (e) {
+      // 接口不通时用一组保守的公开价，避免落地页出现空表
+      box.innerHTML = head + rows([
+        { name: '体验包', total_points: 100, price_yuan: '10.00' },
+        { name: '基础包', total_points: 550, price_yuan: '50.00' },
+        { name: '标准包', total_points: 2200, price_yuan: '200.00', tag: '多数人选' },
+        { name: '专业包', total_points: 5750, price_yuan: '500.00' },
+        { name: '工作室包', total_points: 12000, price_yuan: '1000.00' },
+        { name: '企业包', total_points: 25000, price_yuan: '2000.00' }
+      ]);
+    }
+  })();
+
+  /* ---------------------------------------------------------------- 导轨 / 时间码 / 导航 */
+  var nav = $('#nav');
+  var track = $('#railTrack'), fill = $('#railFill'), raiHead = $('#railHead'), tc = $('#railTc');
+  var chapters = Array.prototype.map.call(
+    document.querySelectorAll('#works,#craft,#how,#price'), function (el) {
+      return { el: el, top: 0, dot: null };
+    });
+  var links = Array.prototype.slice.call(document.querySelectorAll('.nlinks a[href^="#"]'));
+  var FPS = 24, TOTAL = 60;
+  var raf = 0, ticking = false;
+
+  function progressAt(top) {
+    var max = document.documentElement.scrollHeight - window.innerHeight;
+    if (max <= 0) return 0;
+    return Math.max(0, Math.min(1, (top - 90) / max));
+  }
+  function measure() {
+    chapters.forEach(function (c) {
+      c.top = c.el.getBoundingClientRect().top + window.scrollY;
+      if (c.dot) c.dot.style.top = (progressAt(c.top) * 100) + '%';
+    });
+  }
+  function buildDots() {
+    if (!track) return;
+    chapters.forEach(function (c) {
+      var d = document.createElement('i');
+      d.className = 'rail-dot';
+      track.appendChild(d);
+      c.dot = d;
+    });
+  }
+  function paint() {
+    var y = window.scrollY;
+    var max = document.documentElement.scrollHeight - window.innerHeight;
+    var p = max > 0 ? Math.max(0, Math.min(1, y / max)) : 0;
+
+    if (fill) fill.style.height = (p * 100) + '%';
+    if (raiHead) raiHead.style.top = (p * 100) + '%';
+    if (tc) {
+      var t = p * TOTAL;
+      var mm = Math.floor(t / 60), ss = Math.floor(t % 60), ff = Math.floor((t % 1) * FPS);
+      tc.textContent = String(mm).padStart(2, '0') + ':' +
+        String(ss).padStart(2, '0') + ':' + String(ff).padStart(2, '0');
+    }
+    if (nav) nav.classList.toggle('stuck', y > 24);
+
+    var line = y + window.innerHeight * 0.34;
+    var cur = -1;
+    chapters.forEach(function (c, i) { if (c.top <= line) cur = i; });
+    links.forEach(function (a) {
+      a.classList.toggle('on', cur > -1 && a.getAttribute('href') === '#' + chapters[cur].el.id);
+    });
+    chapters.forEach(function (c, i) {
+      if (c.dot) c.dot.classList.toggle('on', i === cur);
+    });
+  }
+
+  window.addEventListener('scroll', function () {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function () { ticking = false; paint(); });
+  }, { passive: true });
+  window.addEventListener('resize', function () { measure(); paint(); });
+
+  var easeInOutCubic = function (t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  };
+  function goTo(el) {
+    var navH = nav ? nav.getBoundingClientRect().height : 78;
+    var max = document.documentElement.scrollHeight - window.innerHeight;
+    var goal = Math.max(0, Math.min(max, el.getBoundingClientRect().top + window.scrollY - navH + 1));
+    var from = window.scrollY, dist = goal - from;
     if (Math.abs(dist) < 4) return;
-    // 距离越远给的时间越长，但限制在 380~820ms，快而不飘
-    const dur = Math.min(820, Math.max(380, Math.abs(dist) * 0.5));
-    const t0 = performance.now();
+    var dur = reduce ? 0 : Math.min(880, Math.max(360, Math.abs(dist) * 0.55));
+    var t0 = performance.now();
     cancelAnimationFrame(raf);
+    if (!dur) { window.scrollTo(0, goal); return; }
     (function step(now) {
-      const p = Math.min(1, (now - t0) / dur);
-      window.scrollTo({ top: from + dist * easeInOutCubic(p), behavior: 'instant' });
-      if (p < 1) raf = requestAnimationFrame(step);
+      var k = Math.min(1, (now - t0) / dur);
+      window.scrollTo(0, from + dist * easeInOutCubic(k));
+      if (k < 1) raf = requestAnimationFrame(step);
     })(t0);
   }
 
-  // 事件委托：导航栏之外，hero 的「看价格」等 # 链接也走同一套动画
-  document.addEventListener('click', (e) => {
-    const a = e.target.closest('a[href^="#"]');
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest ? e.target.closest('a[href^="#"]') : null;
     if (!a) return;
-    const hash = a.getAttribute('href');
-    if (!hash || hash === '#') return;
-    const el = document.querySelector(hash);
+    var id = a.getAttribute('href');
+    if (!id || id === '#') return;
+    var el = document.querySelector(id);
     if (!el) return;
     e.preventDefault();
-    scrollToSection(el);
-    // 用 replaceState 而不是改 location.hash，否则浏览器会再跳一次，且污染历史
-    history.replaceState(null, '', hash);
+    goTo(el);
+    history.replaceState(null, '', id);
   });
 
-  function paint() {
-    const y = window.scrollY;
-    const max = maxScroll();
-    if (bar) bar.style.width = (max > 0 ? Math.min(100, (y / max) * 100) : 0) + '%';
-
-    const line = y + navH() + 90;
-    let cur = -1;
-    targets.forEach((s, i) => { if (s.offsetTop <= line) cur = i; });
-    links.forEach((a, i) => a.classList.toggle('on', i === cur));
-  }
-
-  window.addEventListener('scroll', () => {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(() => { ticking = false; paint(); });
-  }, { passive: true });
-  window.addEventListener('resize', paint);
-
-  // 带 #xxx 直接打开时，等页面渲染完再对齐位置（浏览器默认会贴顶，被导航挡住）
-  window.addEventListener('load', () => {
-    const hash = location.hash;
-    if (hash && hash !== '#') {
-      const el = document.querySelector(hash);
-      if (el) setTimeout(() => scrollToSection(el), 60);
-    }
+  /* ---------------------------------------------------------------- 启动 */
+  function start() {
+    buildDots();
+    measure();
     paint();
+    boot();
+  }
+  if (document.readyState === 'complete') start();
+  else window.addEventListener('load', start);
+
+  window.addEventListener('load', function () {
+    setTimeout(function () { measure(); paint(); }, 150);
   });
-  paint();
+  // 图片/字体晚到时再校正一次
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () { measure(); paint(); });
+  }
 })();
 </script>
 </body>
