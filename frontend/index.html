@@ -165,8 +165,8 @@ button,input{font:inherit;color:inherit}
 
 /* ------------------------------------------------------------------ 首屏 */
 .hero{position:relative;padding:clamp(40px,6vw,84px) 0 clamp(46px,5.4vw,72px);overflow:hidden}
-.hero-in{position:relative;display:grid;gap:clamp(34px,5vw,72px);
-  grid-template-columns:minmax(0,1.12fr) minmax(0,.78fr);align-items:center}
+.hero-in{position:relative;display:grid;gap:clamp(28px,4vw,56px);
+  grid-template-columns:minmax(0,.96fr) minmax(0,1.04fr);align-items:center}
 @media (max-width:960px){.hero-in{grid-template-columns:1fr;gap:44px}}
 
 .hh{margin:0;font-size:clamp(41px,6.05vw,84px);line-height:1.14;letter-spacing:-.035em;font-weight:600}
@@ -215,49 +215,48 @@ html.js:not(.ready) .facts{opacity:0}
 .facts li:first-child{padding-left:0;border-left:0}
 .facts li b{font-weight:500;color:var(--ink-2);font-variant-numeric:tabular-nums}
 
-/* 右侧：大尺寸堆叠卡，一张一张切换；每张卡按作品原始比例定尺寸，所以不会被裁 */
+/* 右侧：大图主展示 + 底部缩略图导航；占满右侧竖向空间，每张清晰不重叠 */
 .hero-copy{position:relative;z-index:2}
-.hero-frame{justify-self:end;width:100%;max-width:560px;z-index:1}
-.stack{position:relative;height:clamp(420px,46vw,600px);perspective:1400px;
+.hero-frame{justify-self:end;width:100%;max-width:620px;z-index:1}
+.gallery{position:relative;display:flex;flex-direction:column;gap:18px;
   transition:opacity .9s var(--ease) .5s,transform .9s var(--ease) .5s}
-html.js:not(.ready) .stack{opacity:0;transform:translateY(16px)}
+html.js:not(.ready) .gallery{opacity:0;transform:translateY(16px)}
 
-.snap{
-  position:absolute;left:50%;top:50%;
-  width:calc(var(--w,1) * 100%);aspect-ratio:var(--ar,1.778);
-  margin:0;padding:0;overflow:hidden;cursor:zoom-in;
-  background:#0A0F1C;border:1px solid var(--gline);border-radius:var(--r-xl);
-  box-shadow:var(--sh-3);
-  transition:transform .62s var(--ease),opacity .5s ease,box-shadow .5s ease,border-color .5s;
-  will-change:transform,opacity;
-}
-.snap img,.snap video{width:100%;height:100%;object-fit:cover;display:block}
-.snap::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+.gallery-stage{position:relative;width:100%;aspect-ratio:16/9;border-radius:var(--r-xl);
+  overflow:hidden;background:#0A0F1C;border:1px solid var(--gline);
+  box-shadow:var(--sh-3),0 0 60px rgba(96,148,255,.22)}
+.gslide{position:absolute;inset:0;margin:0;padding:0;overflow:hidden;cursor:zoom-in;
+  border:0;background:#0A0F1C;opacity:0;visibility:hidden;
+  transition:opacity .5s ease,transform .5s ease}
+.gslide.is-on{opacity:1;visibility:visible;z-index:2}
+.gslide img,.gslide video{width:100%;height:100%;object-fit:cover;display:block}
+.gslide::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.12),inset 0 0 0 1px rgba(255,255,255,.06)}
-.snap .nm{position:absolute;left:14px;bottom:14px;z-index:3;
-  padding:6px 14px;border-radius:var(--pill);font-size:12.5px;color:var(--ink);
+.gslide .nm{position:absolute;left:16px;bottom:16px;z-index:3;
+  padding:7px 15px;border-radius:var(--pill);font-size:13px;color:var(--ink);
   background:rgba(9,13,24,.58);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
-  border:1px solid var(--gline);white-space:nowrap;opacity:1;transition:opacity .4s}
-.snap .ar{position:absolute;right:14px;top:14px;z-index:3;font-family:var(--mono);font-size:10px;
+  border:1px solid var(--gline);white-space:nowrap}
+.gslide .ar{position:absolute;right:16px;top:16px;z-index:3;font-family:var(--mono);font-size:10px;
   letter-spacing:.1em;color:var(--ink-2);padding:4px 9px;border-radius:var(--pill);
   background:rgba(9,13,24,.5);border:1px solid var(--gline)}
 
-/* 叠落切换：当前一张在最前，后面两张错开露出，其余退场 */
-.snap[data-off="-1"]{transform:translate(-50%,-50%) translateX(-30%) scale(.8) rotate(-2deg);
-  opacity:0;z-index:10;pointer-events:none}
-.snap[data-off="0"]{transform:translate(-50%,-50%) translateY(-6%) scale(1);
-  opacity:1;z-index:60;border-color:rgba(91,140,255,.55);
-  box-shadow:var(--sh-3),0 0 60px rgba(96,148,255,.34)}
-.snap[data-off="1"]{transform:translate(-50%,-50%) translateX(11%) translateY(2.5%) scale(.92) rotate(1.4deg);
-  opacity:.62;z-index:40;pointer-events:none}
-.snap[data-off="2"]{transform:translate(-50%,-50%) translateX(21%) translateY(5%) scale(.84) rotate(2.6deg);
-  opacity:.3;z-index:15;pointer-events:none}
-.snap[data-off="far"]{opacity:0;z-index:5;pointer-events:none;
-  transform:translate(-50%,-50%) translateX(27%) translateY(7%) scale(.78) rotate(3.4deg)}
-.snap[data-off="0"]:hover{filter:brightness(1.05)}
+/* 底部缩略图条 */
+.gallery-thumbs{display:flex;gap:6px;justify-content:center;overflow:hidden;
+  padding:2px 0 4px;width:100%}
+.gallery-thumbs::-webkit-scrollbar{display:none}
+.gthumb{flex:1 1 0;position:relative;min-width:0;max-width:72px;height:40px;border-radius:var(--r-md);
+  overflow:hidden;border:1px solid var(--gline);cursor:pointer;padding:0;
+  opacity:.52;transition:opacity .25s,border-color .25s,transform .25s var(--ease);
+  background:#0A0F1C}
+.gthumb img{width:100%;height:100%;object-fit:cover;display:block}
+.gthumb:hover{opacity:.85}
+.gthumb.is-on{opacity:1;border-color:var(--brand-line);box-shadow:0 0 0 2px rgba(91,140,255,.35)}
+.gthumb .play{position:absolute;inset:0;margin:auto;width:16px;height:16px;z-index:2;
+  display:grid;place-items:center;color:#fff;background:rgba(9,13,24,.45);
+  border-radius:50%;pointer-events:none}
+.gthumb .play svg{width:8px;height:8px;fill:currentColor;margin-left:1px}
 
-.stack-ctl{position:absolute;left:0;right:0;bottom:-6px;z-index:40;
-  display:flex;align-items:center;gap:12px;justify-content:center}
+.gallery-ctl{display:flex;align-items:center;gap:12px;justify-content:center}
 .stack-btn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;cursor:pointer;
   color:var(--ink);background:var(--glass-2);border:1px solid var(--gline-2);
   -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);transition:background .2s,transform .2s}
@@ -265,15 +264,10 @@ html.js:not(.ready) .stack{opacity:0;transform:translateY(16px)}
 .stack-btn svg{width:15px;height:15px;fill:currentColor}
 .stack-num{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;color:var(--ink-2);
   font-variant-numeric:tabular-nums}
-.stack-dots{display:flex;gap:6px}
-.stack-dots i{width:16px;height:3px;border-radius:2px;background:rgba(255,255,255,.18);
-  transition:background .3s,width .3s}
-.stack-dots i.on{background:var(--brand);width:26px;box-shadow:0 0 10px rgba(91,140,255,.7)}
 
 @media (max-width:960px){
   .hero-frame{max-width:none}
-  .stack{height:clamp(300px,52vw,420px)}
-  .snap{border-radius:var(--r-lg)}
+  .gallery-stage{border-radius:var(--r-lg)}
 }
 
 /* ------------------------------------------------------------------ 通用区块 */
@@ -474,88 +468,92 @@ html.js:not(.ready) .stack{opacity:0;transform:translateY(16px)}
     </div>
 
     <div class="hero-frame">
-      <div class="stack" id="stack" aria-label="作品轮播">
-        <button class="snap" style="--ar:1.778;--w:.82" type="button" data-type="video" data-src="/assets/showcase/series/v08.mp4"
-                data-cn="绿紫色极光在繁星夜空下舞动，雪山环绕，完美倒映在平静湖面，湖畔一间亮着暖光的小木屋，极光如波浪般真实流动"
-                data-en="Green and purple auroras dancing under a starry sky, ringed by snowy mountains and mirrored in a calm lake, a warm-lit cabin on the shore, the aurora flowing like real waves"
-                aria-label="查看：极光之夜">
-          <video class="vfilm" src="/assets/showcase/series/v08.mp4" poster="/assets/showcase/series/v08.jpg"
-                 muted loop playsinline preload="none"></video>
-          <span class="nm">极光之夜</span><span class="ar">16:9</span>
-        </button>
-        <button class="snap" style="--ar:1.778;--w:.82" type="button" data-type="video" data-src="/assets/showcase/series/v09.mp4"
-                data-cn="翡翠色巨浪卷成完美桶形，超级慢镜头，金色阳光穿透半透明浪壁，浪尖水花飞溅，水体细节晶莹剔透"
-                data-en="An emerald wave curling into a perfect barrel in super slow motion, golden sunlight shining through the translucent wall of water, spray bursting from the crest, crystal-clear water detail"
-                aria-label="查看：巨浪桶卷">
-          <video class="vfilm" src="/assets/showcase/series/v09.mp4" poster="/assets/showcase/series/v09.jpg"
-                 muted loop playsinline preload="none"></video>
-          <span class="nm">巨浪桶卷</span><span class="ar">16:9</span>
-        </button>
-        <button class="snap" style="--ar:1.778;--w:.82" type="button" data-type="video" data-src="/assets/showcase/series/v10.mp4"
-                data-cn="马群在日落时分的金色草原上奔腾，慢镜头，鬃毛飞扬，尘土在逆光中发光，低角度跟拍与马群并行，力量与自由感"
-                data-en="Horses galloping across a golden steppe at sunset in slow motion, manes flying, dust glowing in backlight, low-angle tracking shot alongside the herd, power and freedom"
-                aria-label="查看：万马奔腾">
-          <video class="vfilm" src="/assets/showcase/series/v10.mp4" poster="/assets/showcase/series/v10.jpg"
-                 muted loop playsinline preload="none"></video>
-          <span class="nm">万马奔腾</span><span class="ar">16:9</span>
-        </button>
-        <button class="snap" style="--ar:1.778;--w:.82" type="button" data-type="video" data-src="/assets/showcase/series/v06.mp4"
-                data-cn="FPV无人机日出时分贴着云海高速飞行，俯冲穿过锯齿状山峰，金色阳光穿透云层，雾气从镜头两侧掠过，电影级航拍"
-                data-en="FPV drone flying fast over a sea of clouds at sunrise, diving through jagged peaks, golden sunlight piercing the clouds, mist sweeping past the lens, cinematic aerial"
-                aria-label="查看：云海穿越">
-          <video class="vfilm" src="/assets/showcase/series/v06.mp4" poster="/assets/showcase/series/v06.jpg"
-                 muted loop playsinline preload="none"></video>
-          <span class="nm">云海穿越</span><span class="ar">16:9</span>
-        </button>
-        <button class="snap" style="--ar:1.778;--w:.82" type="button" data-type="video" data-src="/assets/showcase/series/v07.mp4"
-                data-cn="上海陆家嘴天际线昼夜延时摄影，隔黄浦江对望，云层飞速流过，白天过渡到蓝调时刻，东方明珠与摩天楼群亮起霓虹，车流化作光轨"
-                data-en="Day-to-night timelapse of the Shanghai Lujiazui skyline across the Huangpu River, clouds racing overhead, daylight fading into blue hour, neon lights igniting the towers, traffic turning into light trails"
-                aria-label="查看：上海昼夜">
-          <video class="vfilm" src="/assets/showcase/series/v07.mp4" poster="/assets/showcase/series/v07.jpg"
-                 muted loop playsinline preload="none"></video>
-          <span class="nm">上海昼夜</span><span class="ar">16:9</span>
-        </button>
-        <button class="snap" style="--ar:1.333;--w:.74" type="button" data-type="image" data-src="/assets/showcase/series/p02.webp"
-                data-cn="写实极简风景，清晨雾气弥漫的湖面，远处一叶小木舟，层叠的远山在雾中若隐若现，灰蓝色调，天空与水面大量留白，横版构图"
-                data-en="Photorealistic minimalist landscape at dawn, a calm misty lake with one tiny wooden boat far away, layered soft mountain silhouettes fading into fog, pale grey-blue palette, vast negative space of sky and water, horizontal composition"
-                aria-label="查看：雾湖孤舟">
-          <img src="/assets/showcase/series/p02.webp" alt="雾湖孤舟" loading="lazy">
-          <span class="nm">雾湖孤舟</span><span class="ar">4:3</span>
-        </button>
-        <button class="snap" style="--ar:1.333;--w:.74" type="button" data-type="image" data-src="/assets/showcase/series/p03.webp"
-                data-cn="写实极简建筑摄影，一面弧形白色混凝土建筑立在清澈的浅蓝天空下，墙角一棵小绿树，线条干净，天空大量留白，明亮日光，横版构图"
-                data-en="Photorealistic minimalist architecture photo, a smooth curved white concrete building against a clear pale blue sky, one small green tree at its base, strong clean lines and large areas of empty sky, bright daylight, horizontal composition"
-                aria-label="查看：白墙与蓝天">
-          <img src="/assets/showcase/series/p03.webp" alt="白墙与蓝天" loading="lazy">
-          <span class="nm">白墙与蓝天</span><span class="ar">4:3</span>
-        </button>
-        <button class="snap" style="--ar:1.5;--w:.78" type="button" data-type="image" data-src="/assets/showcase/series/p04.webp"
-                data-cn="写实极简产品摄影，一只琥珀色玻璃精华瓶立在浅色石台上，米色纯色墙面，墙上投下柔和的树叶影子，温暖日光，大量留白，横版构图"
-                data-en="Photorealistic minimalist product photo, a single amber glass skincare bottle standing on a light stone pedestal against a plain beige wall, soft leaf shadows cast on the wall, warm daylight, lots of negative space, horizontal composition"
-                aria-label="查看：琥珀瓶">
-          <img src="/assets/showcase/series/p04.webp" alt="琥珀瓶" loading="lazy">
-          <span class="nm">琥珀瓶</span><span class="ar">3:2</span>
-        </button>
-        <button class="snap" style="--ar:1.728;--w:.80" type="button" data-type="image" data-src="/assets/showcase/series/p07.webp"
-                data-cn="写实极简室内摄影，明亮的客厅一角，米色布艺沙发，原木小边几上放着插了一枝绿枝的花瓶，白墙，大窗柔光，干净不杂乱"
-                data-en="Photorealistic minimalist interior photo of a bright living room corner, beige fabric sofa, small round wooden side table with a vase holding a single branch, white walls, soft daylight through a large window"
-                aria-label="查看：安静的角落">
-          <img src="/assets/showcase/series/p07.webp" alt="安静的角落" loading="lazy">
-          <span class="nm">安静的角落</span><span class="ar">16:10</span>
-        </button>
-        <button class="snap" style="--ar:1.481;--w:.76" type="button" data-type="image" data-src="/assets/showcase/series/p05.webp"
-                data-cn="写实极简美食摄影，俯拍，一杯黑咖啡和一只可颂放在白色小碟上，浅色木桌，柔和的清晨窗光，大量留白"
-                data-en="Photorealistic minimalist food photo from above, one cup of black coffee and a single croissant on a small white plate, plain light wooden table, soft morning window light, lots of empty space"
-                aria-label="查看：晨光早餐">
-          <img src="/assets/showcase/series/p05.webp" alt="晨光早餐" loading="lazy">
-          <span class="nm">晨光早餐</span><span class="ar">3:2</span>
-        </button>
-        <div class="stack-ctl">
+      <div class="gallery" id="gallery" aria-label="作品图集">
+        <div class="gallery-stage" id="gStage">
+          <button class="gslide is-on" data-idx="0" data-type="video" data-src="/assets/showcase/series/v08.mp4"
+                  data-cn="绿紫色极光在繁星夜空下舞动，雪山环绕，完美倒映在平静湖面，湖畔一间亮着暖光的小木屋，极光如波浪般真实流动"
+                  data-en="Green and purple auroras dancing under a starry sky, ringed by snowy mountains and mirrored in a calm lake, a warm-lit cabin on the shore, the aurora flowing like real waves"
+                  aria-label="查看：极光之夜">
+            <video class="vfilm" src="/assets/showcase/series/v08.mp4" poster="/assets/showcase/series/v08.jpg"
+                   muted loop playsinline preload="none"></video>
+            <span class="nm">极光之夜</span><span class="ar">16:9</span>
+          </button>
+          <button class="gslide" data-idx="1" data-type="video" data-src="/assets/showcase/series/v09.mp4"
+                  data-cn="翡翠色巨浪卷成完美桶形，超级慢镜头，金色阳光穿透半透明浪壁，浪尖水花飞溅，水体细节晶莹剔透"
+                  data-en="An emerald wave curling into a perfect barrel in super slow motion, golden sunlight shining through the translucent wall of water, spray bursting from the crest, crystal-clear water detail"
+                  aria-label="查看：巨浪桶卷">
+            <video class="vfilm" src="/assets/showcase/series/v09.mp4" poster="/assets/showcase/series/v09.jpg"
+                   muted loop playsinline preload="none"></video>
+            <span class="nm">巨浪桶卷</span><span class="ar">16:9</span>
+          </button>
+          <button class="gslide" data-idx="2" data-type="video" data-src="/assets/showcase/series/v10.mp4"
+                  data-cn="马群在日落时分的金色草原上奔腾，慢镜头，鬃毛飞扬，尘土在逆光中发光，低角度跟拍与马群并行，力量与自由感"
+                  data-en="Horses galloping across a golden steppe at sunset in slow motion, manes flying, dust glowing in backlight, low-angle tracking shot alongside the herd, power and freedom"
+                  aria-label="查看：万马奔腾">
+            <video class="vfilm" src="/assets/showcase/series/v10.mp4" poster="/assets/showcase/series/v10.jpg"
+                   muted loop playsinline preload="none"></video>
+            <span class="nm">万马奔腾</span><span class="ar">16:9</span>
+          </button>
+          <button class="gslide" data-idx="3" data-type="video" data-src="/assets/showcase/series/v06.mp4"
+                  data-cn="FPV无人机日出时分贴着云海高速飞行，俯冲穿过锯齿状山峰，金色阳光穿透云层，雾气从镜头两侧掠过，电影级航拍"
+                  data-en="FPV drone flying fast over a sea of clouds at sunrise, diving through jagged peaks, golden sunlight piercing the clouds, mist sweeping past the lens, cinematic aerial"
+                  aria-label="查看：云海穿越">
+            <video class="vfilm" src="/assets/showcase/series/v06.mp4" poster="/assets/showcase/series/v06.jpg"
+                   muted loop playsinline preload="none"></video>
+            <span class="nm">云海穿越</span><span class="ar">16:9</span>
+          </button>
+          <button class="gslide" data-idx="4" data-type="video" data-src="/assets/showcase/series/v07.mp4"
+                  data-cn="上海陆家嘴天际线昼夜延时摄影，隔黄浦江对望，云层飞速流过，白天过渡到蓝调时刻，东方明珠与摩天楼群亮起霓虹，车流化作光轨"
+                  data-en="Day-to-night timelapse of the Shanghai Lujiazui skyline across the Huangpu River, clouds racing overhead, daylight fading into blue hour, neon lights igniting the towers, traffic turning into light trails"
+                  aria-label="查看：上海昼夜">
+            <video class="vfilm" src="/assets/showcase/series/v07.mp4" poster="/assets/showcase/series/v07.jpg"
+                   muted loop playsinline preload="none"></video>
+            <span class="nm">上海昼夜</span><span class="ar">16:9</span>
+          </button>
+          <button class="gslide" data-idx="5" data-type="image" data-src="/assets/showcase/series/p02.webp"
+                  data-cn="写实极简风景，清晨雾气弥漫的湖面，远处一叶小木舟，层叠的远山在雾中若隐若现，灰蓝色调，天空与水面大量留白，横版构图"
+                  data-en="Photorealistic minimalist landscape at dawn, a calm misty lake with one tiny wooden boat far away, layered soft mountain silhouettes fading into fog, pale grey-blue palette, vast negative space of sky and water, horizontal composition"
+                  aria-label="查看：雾湖孤舟">
+            <img src="/assets/showcase/series/p02.webp" alt="雾湖孤舟" loading="lazy">
+            <span class="nm">雾湖孤舟</span><span class="ar">4:3</span>
+          </button>
+          <button class="gslide" data-idx="6" data-type="image" data-src="/assets/showcase/series/p03.webp"
+                  data-cn="写实极简建筑摄影，一面弧形白色混凝土建筑立在清澈的浅蓝天空下，墙角一棵小绿树，线条干净，天空大量留白，明亮日光，横版构图"
+                  data-en="Photorealistic minimalist architecture photo, a smooth curved white concrete building against a clear pale blue sky, one small green tree at its base, strong clean lines and large areas of empty sky, bright daylight, horizontal composition"
+                  aria-label="查看：白墙与蓝天">
+            <img src="/assets/showcase/series/p03.webp" alt="白墙与蓝天" loading="lazy">
+            <span class="nm">白墙与蓝天</span><span class="ar">4:3</span>
+          </button>
+          <button class="gslide" data-idx="7" data-type="image" data-src="/assets/showcase/series/p04.webp"
+                  data-cn="写实极简产品摄影，一只琥珀色玻璃精华瓶立在浅色石台上，米色纯色墙面，墙上投下柔和的树叶影子，温暖日光，大量留白，横版构图"
+                  data-en="Photorealistic minimalist product photo, a single amber glass skincare bottle standing on a light stone pedestal against a plain beige wall, soft leaf shadows cast on the wall, warm daylight, lots of negative space, horizontal composition"
+                  aria-label="查看：琥珀瓶">
+            <img src="/assets/showcase/series/p04.webp" alt="琥珀瓶" loading="lazy">
+            <span class="nm">琥珀瓶</span><span class="ar">3:2</span>
+          </button>
+          <button class="gslide" data-idx="8" data-type="image" data-src="/assets/showcase/series/p07.webp"
+                  data-cn="写实极简室内摄影，明亮的客厅一角，米色布艺沙发，原木小边几上放着插了一枝绿枝的花瓶，白墙，大窗柔光，干净不杂乱"
+                  data-en="Photorealistic minimalist interior photo of a bright living room corner, beige fabric sofa, small round wooden side table with a vase holding a single branch, white walls, soft daylight through a large window"
+                  aria-label="查看：安静的角落">
+            <img src="/assets/showcase/series/p07.webp" alt="安静的角落" loading="lazy">
+            <span class="nm">安静的角落</span><span class="ar">16:10</span>
+          </button>
+          <button class="gslide" data-idx="9" data-type="image" data-src="/assets/showcase/series/p05.webp"
+                  data-cn="写实极简美食摄影，俯拍，一杯黑咖啡和一只可颂放在白色小碟上，浅色木桌，柔和的清晨窗光，大量留白"
+                  data-en="Photorealistic minimalist food photo from above, one cup of black coffee and a single croissant on a small white plate, plain light wooden table, soft morning window light, lots of empty space"
+                  aria-label="查看：晨光早餐">
+            <img src="/assets/showcase/series/p05.webp" alt="晨光早餐" loading="lazy">
+            <span class="nm">晨光早餐</span><span class="ar">3:2</span>
+          </button>
+        </div>
+
+        <div class="gallery-thumbs" id="gThumbs" aria-label="缩略图导航"></div>
+
+        <div class="gallery-ctl">
           <button class="stack-btn" id="stPrev" type="button" aria-label="上一张">
             <svg viewBox="0 0 24 24"><path d="M15.5 4.5 8 12l7.5 7.5-1.8 1.8L4.4 12l9.3-9.3z"/></svg>
           </button>
           <span class="stack-num" id="stNum">01 / 10</span>
-          <div class="stack-dots" id="stDots" aria-hidden="true"></div>
           <button class="stack-btn" id="stNext" type="button" aria-label="下一张">
             <svg viewBox="0 0 24 24"><path d="M8.5 4.5 16 12l-7.5 7.5 1.8 1.8L19.6 12l-9.3-9.3z"/></svg>
           </button>
@@ -1062,31 +1060,51 @@ html.js:not(.ready) .stack{opacity:0;transform:translateY(16px)}
     });
   }
 
-  /* ---------------------------------------------------------------- 堆叠卡：一张一张切换 */
+  /* ---------------------------------------------------------------- 图集：大图 + 缩略图切换 */
   var canHover = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
-  var stack = $('#stack');
-  if (stack) {
-    var snaps = Array.prototype.slice.call(stack.querySelectorAll('.snap'));
-    var dots = $('#stDots'), num = $('#stNum');
+  var gallery = $('#gallery');
+  if (gallery) {
+    var slides = Array.prototype.slice.call(gallery.querySelectorAll('.gslide'));
+    var thumbsWrap = $('#gThumbs'), num = $('#stNum');
     var cur = 0, timer = null, AUTO = 4600;
 
-    snaps.forEach(function (s, i) {
-      var d = document.createElement('i');
-      dots.appendChild(d);
+    /* 根据每张 slide 生成缩略图：视频用 poster，图片用自身 */
+    var thumbs = slides.map(function (s, i) {
+      var t = document.createElement('button');
+      t.type = 'button';
+      t.className = 'gthumb';
+      t.setAttribute('aria-label', '查看第 ' + (i + 1) + ' 张');
+      var v = s.querySelector('video');
+      if (v) {
+        var img = document.createElement('img');
+        img.src = v.getAttribute('poster') || v.getAttribute('src');
+        img.alt = s.getAttribute('aria-label') || '';
+        img.loading = 'lazy';
+        t.appendChild(img);
+        var p = document.createElement('span');
+        p.className = 'play';
+        p.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+        t.appendChild(p);
+      } else {
+        var im = s.querySelector('img');
+        if (im) {
+          var c = document.createElement('img');
+          c.src = im.getAttribute('src');
+          c.alt = im.alt;
+          c.loading = 'lazy';
+          t.appendChild(c);
+        }
+      }
+      thumbsWrap.appendChild(t);
+      return t;
     });
-    var dotEls = Array.prototype.slice.call(dots.children);
 
     function paint() {
-      var n = snaps.length;
-      snaps.forEach(function (s, i) {
-        /* 相对当前位置循环取 -2..n-3，超出 2 的退到 far */
-        var off = ((i - cur + 2 + n) % n) - 2;
-        s.setAttribute('data-off', off <= 2 ? String(off) : 'far');
-      });
-      dotEls.forEach(function (d, i) { d.classList.toggle('on', i === cur); });
-      num.textContent = String(cur + 1).padStart(2, '0') + ' / ' + String(snaps.length).padStart(2, '0');
-      /* 只有当前卡的片子会播放，其余暂停省流量 */
-      snaps.forEach(function (s, i) {
+      slides.forEach(function (s, i) { s.classList.toggle('is-on', i === cur); });
+      thumbs.forEach(function (t, i) { t.classList.toggle('is-on', i === cur); });
+      num.textContent = String(cur + 1).padStart(2, '0') + ' / ' + String(slides.length).padStart(2, '0');
+      /* 只播放当前视频，其余暂停省流量 */
+      slides.forEach(function (s, i) {
         var v = s.querySelector('.vfilm');
         if (!v) return;
         if (i === cur && canHover) {
@@ -1097,8 +1115,11 @@ html.js:not(.ready) .stack{opacity:0;transform:translateY(16px)}
           v.pause();
         }
       });
+      /* 当前缩略图滚动到可视区 */
+      var on = thumbs[cur];
+      if (on) on.classList.add('is-on');
     }
-    function go(n) { cur = (n + snaps.length) % snaps.length; paint(); }
+    function go(n) { cur = (n + slides.length) % slides.length; paint(); }
     function next() { go(cur + 1); }
     function prev() { go(cur - 1); }
     function stop() { if (timer) { clearInterval(timer); timer = null; } }
@@ -1106,12 +1127,15 @@ html.js:not(.ready) .stack{opacity:0;transform:translateY(16px)}
 
     $('#stNext').addEventListener('click', function () { next(); auto(); });
     $('#stPrev').addEventListener('click', function () { prev(); auto(); });
-    stack.addEventListener('mouseenter', stop);
-    stack.addEventListener('mouseleave', auto);
-    /* 点非当前卡把它切到前面；点当前卡进大图 */
-    snaps.forEach(function (s, i) {
-      s.addEventListener('click', function (e) {
-        if (i !== cur) { e.preventDefault(); e.stopPropagation(); go(i); auto(); }
+    gallery.addEventListener('mouseenter', stop);
+    gallery.addEventListener('mouseleave', auto);
+    /* 点缩略图切换；点大图进大图查看 */
+    thumbs.forEach(function (t, i) {
+      t.addEventListener('click', function () { go(i); auto(); });
+    });
+    slides.forEach(function (s, i) {
+      s.addEventListener('click', function () {
+        if (canHover) { openLb(s); }
       });
     });
 
