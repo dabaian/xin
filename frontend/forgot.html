@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>找回密码 · Viora AI</title>
+<link rel="icon" href="/assets/favicon.png">
+<link rel="stylesheet" href="/assets/css/app.css?v=20261026">
+<style>
+.split { display: grid; grid-template-columns: 1fr 1.05fr; min-height: 100vh; }
+.form-side { display: grid; place-items: center; padding: 40px 24px; background: #fff; }
+.form-box { width: 100%; max-width: 372px; }
+.side {
+  position: relative; overflow: hidden; padding: 44px; color: #fff;
+  background: linear-gradient(150deg, #14171D 0%, #1C2029 45%, #2A1C13 100%);
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.side::before {
+  content: ''; position: absolute; inset: -40% -20% auto auto; width: 620px; height: 620px;
+  background: radial-gradient(circle, rgba(255,90,31,.42), transparent 62%);
+}
+.side::after {
+  content: ''; position: absolute; left: -120px; bottom: -180px; width: 480px; height: 480px;
+  background: radial-gradient(circle, rgba(37,99,235,.28), transparent 64%);
+}
+.side > * { position: relative; z-index: 1; }
+.side .logo { display: flex; align-items: center; gap: 11px; font-weight: 700; font-size: 16px; }
+.side .logo .m { width: 34px; height: 34px; border-radius: 10px; object-fit: cover;
+  box-shadow: 0 4px 14px rgba(120,90,255,.45); }
+.side h1 { font-size: 34px; line-height: 1.28; letter-spacing: -.02em; margin: 0 0 14px; font-weight: 700; }
+.side h1 em { font-style: normal; color: #FF8A5B; }
+.side p { color: rgba(255,255,255,.62); font-size: 14px; max-width: 380px; line-height: 1.75; }
+.side .steps { display: grid; gap: 14px; margin-top: 26px; }
+.side .steps div { display: flex; gap: 11px; font-size: 13.5px; color: rgba(255,255,255,.78); }
+.side .steps b {
+  flex: 0 0 20px; width: 20px; height: 20px; border-radius: 50%;
+  background: rgba(255,90,31,.22); color: #FF8A5B; display: grid; place-items: center;
+  font-size: 11px; font-weight: 800; margin-top: 1px;
+}
+.side .foot { color: rgba(255,255,255,.35); font-size: 12px; }
+#mobile { letter-spacing: .04em; }
+#smsCode { letter-spacing: .22em; font-weight: 600; }
+.input-row { display: flex; gap: 10px; align-items: stretch; }
+.input-row .input { flex: 1 1 auto; min-width: 0; }
+.input-row .btn { flex: 0 0 auto; min-width: 116px; padding-left: 12px; padding-right: 12px; }
+.input-row .btn[disabled] { opacity: .62; cursor: not-allowed; }
+.hint { font-size: 11.5px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
+.strength { height: 3px; border-radius: 3px; background: var(--line-2); margin-top: 8px; overflow: hidden; }
+.strength i { display: block; height: 100%; width: 0; transition: all .2s; }
+.cap-img {
+  flex: 0 0 auto; width: 126px; height: 44px; border-radius: 9px;
+  border: 1px solid var(--line); background: #F7F8FA; cursor: pointer;
+  object-fit: cover; transition: opacity .15s, border-color .15s;
+}
+.cap-img:hover { border-color: var(--brand-line); }
+.cap-img.loading { opacity: .4; }
+/* 成功态 */
+.done-box { text-align: center; padding: 12px 0 4px; }
+.done-ico {
+  width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 16px;
+  display: grid; place-items: center; font-size: 26px; color: #fff; font-weight: 800;
+  background: linear-gradient(135deg, #34C77B, #22A863);
+  box-shadow: 0 8px 22px rgba(34,168,99,.28);
+}
+@media (max-width: 900px) { .split { grid-template-columns: 1fr; } .side { display: none; } }
+</style>
+</head>
+<body>
+<div class="split">
+  <div class="form-side">
+    <div class="form-box">
+      <!-- 第一步：验证 + 设新密码 -->
+      <div id="step1">
+        <h2 class="h2" style="margin-bottom:6px">找回密码</h2>
+        <p class="sub mb24">验证手机号后设置新密码</p>
+
+        <form id="form" novalidate>
+          <div class="field">
+            <label class="label">注册手机号</label>
+            <input class="input" id="mobile" type="tel" autocomplete="tel" inputmode="numeric"
+                   maxlength="11" placeholder="11 位手机号" required>
+          </div>
+
+          <div class="field">
+            <label class="label">短信验证码</label>
+            <div class="input-row">
+              <input class="input" id="smsCode" type="text" maxlength="6" autocomplete="one-time-code"
+                     inputmode="numeric" placeholder="6 位数字" required>
+              <button class="btn" id="sendCode" type="button">获取验证码</button>
+            </div>
+            <div class="hint" id="smsTip">验证码会发到这个手机号</div>
+          </div>
+
+          <!-- 图形码兜底：只有极验未配置时才会出现 -->
+          <div class="field" id="capField" hidden>
+            <label class="label">图形验证码</label>
+            <div class="input-row">
+              <input class="input" id="capCode" type="text" maxlength="4" autocomplete="off"
+                     placeholder="右侧 4 位">
+              <img class="cap-img" id="capImg" alt="验证码" title="点击刷新">
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="label">新密码</label>
+            <input class="input" id="password" type="password" autocomplete="new-password"
+                   placeholder="至少 6 位" required>
+            <div class="strength"><i id="sbar"></i></div>
+            <div class="hint" id="stip">建议字母 + 数字组合</div>
+          </div>
+
+          <div class="field">
+            <label class="label">确认新密码</label>
+            <input class="input" id="password2" type="password" autocomplete="new-password"
+                   placeholder="再输一次" required>
+            <div class="hint" id="p2tip"></div>
+          </div>
+
+          <button class="btn btn-primary btn-lg btn-block mt8" id="submit" type="submit">重置密码</button>
+        </form>
+
+        <p class="sub center mt24">
+          <a href="/login" style="color:var(--muted)">← 返回登录</a>
+          <span class="muted" style="margin:0 8px">·</span>
+          <a href="/register" style="color:var(--brand);font-weight:600">注册新账号</a>
+        </p>
+      </div>
+
+      <!-- 第二步：成功 -->
+      <div id="step2" hidden>
+        <div class="done-box">
+          <div class="done-ico">✓</div>
+          <h2 class="h2" style="margin-bottom:8px">密码已重置</h2>
+          <p class="sub mb24">请用新密码登录。为安全起见，其它设备上的登录状态已全部退出。</p>
+          <a class="btn btn-primary btn-lg btn-block" id="goLogin" href="/login">去登录</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="logo"><img class="m" src="/assets/logo-mark.png" alt="Viora AI">Viora AI</div>
+    <div>
+      <h1>忘了密码？<br>手机号还在就行。</h1>
+      <p>不需要找回旧密码，也不用联系客服。收一条短信，设个新的，三十秒就能继续用。</p>
+      <div class="steps">
+        <div><b>1</b><span>填写注册时用的手机号</span></div>
+        <div><b>2</b><span>接收 6 位短信验证码</span></div>
+        <div><b>3</b><span>设置新密码并重新登录</span></div>
+      </div>
+    </div>
+    <div class="foot">© 2026 Viora AI · 内容由 AI 生成，请遵守平台规范</div>
+  </div>
+</div>
+<script src="/config.js"></script>
+<script src="/assets/js/core.js?v=20261026"></script>
+<script>
+(function () {
+  const qs = new URLSearchParams(location.search);
+  const $mob = $('#mobile'), $code = $('#smsCode'), $send = $('#sendCode');
+  const pwd = $('#password'), pwd2 = $('#password2');
+  const MOBILE_RE = /^1[3-9]\d{9}$/;
+
+  function normMobile(v) { return (v || '').replace(/\D/g, '').slice(0, 11); }
+
+  const preset = qs.get('mobile') || qs.get('account');
+  if (preset) $mob.value = normMobile(preset);
+
+  $mob.addEventListener('input', () => {
+    const clean = normMobile($mob.value);
+    if (clean !== $mob.value) $mob.value = clean;
+  });
+  $code.addEventListener('input', () => {
+    $code.value = $code.value.replace(/\D/g, '').slice(0, 6);
+  });
+
+  /* ---------------- 人机验证 ---------------- */
+  let capImgOn = false, capId = '';
+
+  async function loadImageCaptcha() {
+    const img = $('#capImg');
+    if (!img) return;
+    img.classList.add('loading');
+    try {
+      const r = await get('/api/auth/captcha');
+      if (!r || r.enabled === false) { $('#capField').hidden = true; capImgOn = false; return; }
+      capId = r.id;
+      img.src = r.image;
+      $('#capCode').value = '';
+    } catch (err) {
+      toast('验证码加载失败，点图片重试', 'bad');
+    } finally {
+      img.classList.remove('loading');
+    }
+  }
+
+  let capReady = null;
+  async function initCaptcha() {
+    if (capReady) return capReady;
+    capReady = (async () => {
+      const mode = await Gt4.init();
+      if (mode === 'image') {
+        capImgOn = true;
+        $('#capField').hidden = false;
+        loadImageCaptcha();
+        $('#capImg').addEventListener('click', loadImageCaptcha);
+      }
+    })();
+    return capReady;
+  }
+  initCaptcha();
+
+  async function grabCaptcha() {
+    if (Gt4.mode === 'off' && !capReady) await initCaptcha();
+    if (capImgOn) {
+      const c = $('#capCode').value.trim();
+      if (!c) { toast('请先填写右侧的图形验证码', 'warn'); $('#capCode').focus(); return null; }
+      return { captcha_id: capId, captcha_code: c };
+    }
+    if (Gt4.mode === 'off') return {};
+    const p = await Gt4.run();
+    if (!p) {
+      if (Gt4.mode === 'geetest-error') {
+        toast('安全验证组件加载失败，请关闭广告拦截插件后刷新页面', 'bad');
+      }
+      return null;
+    }
+    if (p.image) return {};
+    return Gt4.payload(p);
+  }
+
+  /* ---------------- 发验证码 ---------------- */
+  let coolTimer = null;
+
+  function startCooldown(sec) {
+    let left = sec;
+    $send.disabled = true;
+    $send.textContent = left + ' 秒后重发';
+    clearInterval(coolTimer);
+    coolTimer = setInterval(() => {
+      left -= 1;
+      if (left <= 0) {
+        clearInterval(coolTimer);
+        $send.disabled = false;
+        $send.textContent = '重新获取';
+      } else {
+        $send.textContent = left + ' 秒后重发';
+      }
+    }, 1000);
+  }
+
+  $send.addEventListener('click', async () => {
+    const mobile = normMobile($mob.value);
+    if (!MOBILE_RE.test(mobile)) { toast('请填写正确的 11 位手机号', 'warn'); $mob.focus(); return; }
+    const cap = await grabCaptcha();
+    if (cap === null) return;
+
+    $send.disabled = true;
+    $send.textContent = '发送中…';
+    try {
+      const r = await post('/api/auth/sms-code', {
+        mobile: mobile, purpose: 'reset', ...cap,
+      });
+      startCooldown(r.cooldown || 60);
+      $code.focus();
+      if (r.echo) {
+        $code.value = r.dev_code || '';
+        $('#smsTip').innerHTML = '<span style="color:var(--warn)">演示模式：短信通道未配置，验证码已自动填入</span>';
+        toast('演示模式：验证码已填入', 'warn');
+      } else {
+        $('#smsTip').textContent = '已发送至 ' + (r.mobile || mobile) +
+          '，' + (r.ttl_minutes || 5) + ' 分钟内有效';
+        toast('验证码已发送', 'ok');
+      }
+    } catch (err) {
+      $send.disabled = false;
+      $send.textContent = '获取验证码';
+      toast(err.message || '发送失败', 'bad');
+      if (capImgOn) loadImageCaptcha();
+    }
+  });
+
+  /* ---------------- 密码强度 / 一致性 ---------------- */
+  pwd.addEventListener('input', () => {
+    const v = pwd.value;
+    let score = 0;
+    if (v.length >= 6) score++;
+    if (v.length >= 10) score++;
+    if (/[a-zA-Z]/.test(v) && /\d/.test(v)) score++;
+    if (/[^a-zA-Z0-9]/.test(v)) score++;
+    const map = [
+      ['0%', 'var(--line-2)', '建议字母 + 数字组合'],
+      ['35%', 'var(--bad)', '太短了，至少 6 位'],
+      ['60%', 'var(--warn)', '还可以，再长一点更安全'],
+      ['80%', 'var(--ok)', '不错'],
+      ['100%', 'var(--ok)', '很安全'],
+    ];
+    const [w, c, t] = map[Math.min(score, 4)];
+    $('#sbar').style.width = w;
+    $('#sbar').style.background = c;
+    $('#stip').textContent = t;
+    checkSame();
+  });
+
+  function checkSame() {
+    const tip = $('#p2tip');
+    if (!pwd2.value) { tip.textContent = ''; return; }
+    const same = pwd.value === pwd2.value;
+    tip.textContent = same ? '两次输入一致' : '两次输入的密码不一样';
+    tip.style.color = same ? 'var(--ok)' : 'var(--bad)';
+  }
+  pwd2.addEventListener('input', checkSame);
+
+  /* ---------------- 提交 ---------------- */
+  $('#form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const mobile = normMobile($mob.value);
+    if (!MOBILE_RE.test(mobile)) { toast('请填写正确的 11 位手机号', 'warn'); $mob.focus(); return; }
+    if (!/^\d{6}$/.test($code.value.trim())) {
+      toast('请填写 6 位短信验证码', 'warn'); $code.focus(); return;
+    }
+    if (pwd.value.length < 6) { toast('新密码至少 6 位', 'warn'); pwd.focus(); return; }
+    if (pwd.value !== pwd2.value) { toast('两次输入的密码不一样', 'warn'); pwd2.focus(); return; }
+
+    const btn = $('#submit');
+    btn.disabled = true; btn.textContent = '提交中…';
+    try {
+      await post('/api/auth/reset-password', {
+        mobile: mobile,
+        sms_code: $code.value.trim(),
+        new_password: pwd.value,
+      });
+      $('#step1').hidden = true;
+      $('#step2').hidden = false;
+      $('#goLogin').href = '/login?account=' + encodeURIComponent(mobile);
+      toast('密码已重置', 'ok');
+    } catch (err) {
+      btn.disabled = false; btn.textContent = '重置密码';
+      toast(err.message || '重置失败', 'bad');
+      if (capImgOn) loadImageCaptcha();
+      if (/验证码/.test(err.message || '')) { $code.focus(); $code.select(); }
+    }
+  });
+
+  (preset ? $code : $mob).focus();
+})();
+</script>
+</body>
+</html>

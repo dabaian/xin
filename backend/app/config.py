@@ -243,11 +243,48 @@ class Settings:
     email_code_ttl: int = field(default_factory=lambda: _int("EMAIL_CODE_TTL", 600))
     email_code_required: bool = field(default_factory=lambda: _bool("EMAIL_CODE_REQUIRED", True))
 
+    # ---------- 短信（注册 / 找回密码的验证码，主通道） ----------
+    # 短信宝接口：GET https://api.smsbao.com/sms?u=&p=&m=&c= ，返回纯文本状态码。
+    # SMSBAO_KEY 必须是「平台登录密码的 32 位 MD5」或后台生成的 ApiKey，
+    # 填登录密码明文会返回 30。
+    smsbao_api: str = field(default_factory=lambda: _env("SMSBAO_API",
+                                                         "https://api.smsbao.com/sms"))
+    smsbao_query: str = field(default_factory=lambda: _env(
+        "SMSBAO_QUERY", "https://www.smsbao.com/query"))
+    smsbao_user: str = field(default_factory=lambda: _env("SMSBAO_USER", ""))
+    smsbao_key: str = field(default_factory=lambda: _env("SMSBAO_KEY", ""))
+    # 专用通道的产品 ID（文档里的 g 参数），不填走「通用短信产品」
+    smsbao_goods: str = field(default_factory=lambda: _env("SMSBAO_GOODS", ""))
+    sms_timeout: int = field(default_factory=lambda: _int("SMS_TIMEOUT", 10))
+    # 模板里的 {code} 会被替换成验证码，{minutes} 会被替换成有效分钟数。
+    # 签名【】必须写在内容里（短信宝按内容原样下发，不额外加签名）。
+    sms_template: str = field(default_factory=lambda: _env(
+        "SMS_TEMPLATE",
+        "【晟众远网络科技】您正在注册Viora AI平台账号，您的验证码是{code}，"
+        "如非本人操作，请忽略本短信！"))
+    sms_template_reset: str = field(default_factory=lambda: _env(
+        "SMS_TEMPLATE_RESET",
+        "【晟众远网络科技】您正在找回Viora AI平台账号密码，您的验证码是{code}，"
+        "如非本人操作，请忽略本短信！"))
+    sms_template_login: str = field(default_factory=lambda: _env(
+        "SMS_TEMPLATE_LOGIN",
+        "【晟众远网络科技】您正在登录Viora AI平台账号，您的验证码是{code}，"
+        "如非本人操作，请忽略本短信！"))
+    sms_code_ttl: int = field(default_factory=lambda: _int("SMS_CODE_TTL", 300))
+    # 没配短信宝时是否允许把验证码回传给前端（本地调试用，线上写 1 会启动失败）
+    sms_echo: bool = field(default_factory=lambda: _bool("SMS_ECHO", False))
+    # 注册是否强制绑定手机号。关掉则退回「邮箱 + 图形码」的老流程（仅为兼容保留）
+    mobile_required: bool = field(default_factory=lambda: _bool("MOBILE_REQUIRED", True))
+
     # ---------- 上游：muse2api 号池网关 ----------
     # 与现有 muse2api 完全兼容：/v1/videos/generations、/v1/chat/completions、
     # /v1/models、/v1/media/{name}
     muse_base: str = field(default_factory=lambda: _env("MUSE_BASE", "http://127.0.0.1:18610").rstrip("/"))
     muse_key: str = field(default_factory=lambda: _env("MUSE_KEY", ""))
+    # 没配上游密钥时是否拒绝启动。
+    #   0（默认）= 允许先起页面，生成任务会返回明确错误
+    #   1         = 强约束，缺密钥直接起不来（正式对外收款后建议打开）
+    muse_required: bool = field(default_factory=lambda: _bool("MUSE_REQUIRED", False))
     muse_model: str = field(default_factory=lambda: _env("MUSE_MODEL", "muse-video"))
     muse_timeout: int = field(default_factory=lambda: _int("MUSE_TIMEOUT", 600))
     muse_poll_interval: float = field(default_factory=lambda: float(_env("MUSE_POLL_INTERVAL", "4") or 4))

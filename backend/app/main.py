@@ -120,7 +120,8 @@ def runtime_config():
         "features": {
             "captcha": captcha.provider() != "off",
             "captcha_provider": captcha.provider(),
-            "email_code_required": bool(CFG.email_code_required),
+            "mobile_register": bool(CFG.mobile_required),
+            "sms_configured": guard.sms_ready(),
             "register": bool(CFG.allow_register),
         },
     }
@@ -173,6 +174,7 @@ def index():
 for _route, _file in (
     ("/login", "login.html"),
     ("/register", "register.html"),
+    ("/forgot", "forgot.html"),
     ("/studio", "studio.html"),
     ("/tasks", "tasks.html"),
     ("/wallet", "wallet.html"),
@@ -207,5 +209,14 @@ def _startup():
 
     if not CFG.muse_key:
         log.warning("MUSE_KEY 未配置，生成任务会失败（请在 .env 填写号池密钥）")
+    from . import sms as sms_mod
+
+    if sms_mod.configured():
+        log.info("短信通道：短信宝（账号 %s，验证码 %d 分钟有效）",
+                 CFG.smsbao_user, max(1, int(CFG.sms_code_ttl) // 60))
+    elif sms_mod.echo_mode():
+        log.warning("短信通道未配置，SMS_ECHO=1：验证码会直接显示在页面上（仅限本地）")
+    else:
+        log.error("短信宝未配置（SMSBAO_USER / SMSBAO_KEY），注册与找回密码会失败")
     for w in guard.warnings():
         log.warning("上线提醒：%s", w)

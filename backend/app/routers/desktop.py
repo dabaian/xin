@@ -48,7 +48,9 @@ def bootstrap(user=Depends(optional_user)):
         "version": CFG.desktop_version,
         "home": "/studio",
         "logged_in": bool(user),
-        "user": ({"email": user["email"], "username": user["username"]} if user else None),
+        "user": ({"mobile": (user["mobile"] or ""),
+                  "email": user["email"],
+                  "username": user["username"]} if user else None),
     }
 
 

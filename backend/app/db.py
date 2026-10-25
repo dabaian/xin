@@ -32,6 +32,7 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS users (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     email         TEXT NOT NULL UNIQUE,
+    mobile        TEXT NOT NULL DEFAULT '',            -- 手机号（注册主账号，唯一）
     username      TEXT NOT NULL DEFAULT '',
     password_hash TEXT NOT NULL,
     role          TEXT NOT NULL DEFAULT 'user',        -- user / admin
@@ -81,6 +82,21 @@ CREATE TABLE IF NOT EXISTS email_codes (
     expires_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_email_codes ON email_codes(email, purpose, created_at);
+
+-- 短信验证码：注册 / 找回密码 / 验证码登录，只存哈希
+CREATE TABLE IF NOT EXISTS sms_codes (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    mobile     TEXT NOT NULL,
+    purpose    TEXT NOT NULL DEFAULT 'register',   -- register / reset / login
+    code_hash  TEXT NOT NULL,
+    ip         TEXT NOT NULL DEFAULT '',
+    attempts   INTEGER NOT NULL DEFAULT 0,
+    used       INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sms_codes ON sms_codes(mobile, purpose, created_at);
+CREATE INDEX IF NOT EXISTS idx_sms_codes_ip ON sms_codes(ip, created_at);
 
 CREATE TABLE IF NOT EXISTS wallets (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -496,9 +512,14 @@ def init_db() -> None:
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")
 
             _add("users", "note", "TEXT NOT NULL DEFAULT ''")
+            _add("users", "mobile", "TEXT NOT NULL DEFAULT ''")
             _add("generation_tasks", "result_text", "TEXT NOT NULL DEFAULT ''")
             _add("generation_tasks", "queued_ahead", "INTEGER NOT NULL DEFAULT 0")
             _add("payment_orders", "buyer_id", "TEXT NOT NULL DEFAULT ''")
+            # 手机号唯一。用部分索引（WHERE mobile<>''）是因为老库里
+            # 每个用户的 mobile 都是空串，全量唯一索引会直接建不起来。
+            conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_mobile "
+                         "ON users(mobile) WHERE mobile <> ''")
             _seed(conn)
             conn.commit()
             # 这条连接常驻不关：只要它还在，WAL 的 -shm 文件就不会被删除，

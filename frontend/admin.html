@@ -166,7 +166,7 @@
   async function renderUsers() {
     view.innerHTML = `
       <div class="toolbar">
-        <input class="input" id="kw" placeholder="搜索邮箱或昵称" style="width:240px">
+        <input class="input" id="kw" placeholder="搜索手机号 / 邮箱 / 昵称" style="width:260px">
         <button class="btn btn-sm" id="search">搜索</button>
       </div>
       <div class="card" id="ulist"><div class="card-pad"><div class="skel" style="height:200px"></div></div></div>`;
@@ -174,12 +174,12 @@
       const kw = encodeURIComponent($('#kw').value.trim());
       const r = await get('/api/admin/users?limit=50&keyword=' + kw);
       $('#ulist').innerHTML = `<table class="table">
-        <thead><tr><th>ID</th><th>邮箱 / 昵称</th><th>余额</th><th>累计充值</th><th>状态</th><th>注册</th><th></th></tr></thead>
+        <thead><tr><th>ID</th><th>手机号 / 昵称</th><th>余额</th><th>累计充值</th><th>状态</th><th>注册</th><th></th></tr></thead>
         <tbody>${r.items.map((u) => `
           <tr>
             <td class="num muted">${u.id}</td>
-            <td><div style="font-weight:550">${esc(u.email)}</div>
-              <div class="muted mini">${esc(u.username)} ${u.role === 'admin' ? '· 管理员' : ''}</div></td>
+            <td><div style="font-weight:550">${esc(u.mobile || u.email || '—')}</div>
+              <div class="muted mini">${esc(u.username)}${u.mobile && u.email ? ' · ' + esc(u.email) : ''} ${u.role === 'admin' ? '· 管理员' : ''}</div></td>
             <td class="num">${fmt.points(u.available_points)}${u.frozen_points ? `<span class="muted"> (冻 ${u.frozen_points})</span>` : ''}</td>
             <td class="num">${fmt.points(u.total_recharged)}</td>
             <td>${u.status === 'active' ? '<span class="tag tag-ok">正常</span>' : '<span class="tag tag-bad">已禁用</span>'}</td>

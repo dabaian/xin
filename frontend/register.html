@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>注册 · Viora AI</title>
 <link rel="icon" href="/assets/favicon.png">
-<link rel="stylesheet" href="/assets/css/app.css?v=20261025">
+<link rel="stylesheet" href="/assets/css/app.css?v=20261026">
 <style>
 .split { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
 .left { display: grid; place-items: center; padding: 40px 24px; background: #fff; }
@@ -24,14 +24,19 @@
   padding: 10px 16px; border-radius: 12px; background: rgba(255,90,31,.14);
   border: 1px solid rgba(255,90,31,.32); color: #FFB08A; font-weight: 600; font-size: 13px;
 }
-.form { width: 100%; max-width: 372px; }
-.hint { font-size: 11.5px; color: var(--muted); margin-top: 5px; }
+.form { width: 100%; max-width: 384px; }
+.hint { font-size: 11.5px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
 .strength { height: 3px; border-radius: 3px; background: var(--line-2); margin-top: 8px; overflow: hidden; }
 .strength i { display: block; height: 100%; width: 0; transition: all .2s; }
-.cap-row { display: flex; gap: 10px; align-items: stretch; }
-.cap-row .input { flex: 1 1 auto; min-width: 0; letter-spacing: .3em; text-transform: uppercase; font-weight: 600; }
+/* 手机号 / 验证码这类「输入框 + 右侧按钮」的横排 */
+.input-row { display: flex; gap: 10px; align-items: stretch; }
+.input-row .input { flex: 1 1 auto; min-width: 0; }
+.input-row .btn { flex: 0 0 auto; min-width: 116px; padding-left: 12px; padding-right: 12px; }
+.input-row .btn[disabled] { opacity: .62; cursor: not-allowed; }
+#mobile { letter-spacing: .04em; }
+#smsCode, #capCode { letter-spacing: .22em; font-weight: 600; text-transform: none; }
 .cap-img {
-  flex: 0 0 auto; width: 132px; height: 44px; border-radius: 9px;
+  flex: 0 0 auto; width: 126px; height: 44px; border-radius: 9px;
   border: 1px solid var(--line); background: #F7F8FA; cursor: pointer;
   object-fit: cover; transition: opacity .15s, border-color .15s;
 }
@@ -45,17 +50,34 @@
   <div class="left">
     <div class="form">
       <h2 class="h2" style="margin-bottom:6px">创建账号</h2>
-      <p class="sub mb24">注册即送 <b style="color:var(--brand-ink)" id="bonusTip">体验积分</b>，够生成两条作品</p>
-      <form id="form">
+      <p class="sub mb24">手机号注册，注册即送 <b style="color:var(--brand-ink)" id="bonusTip">体验积分</b></p>
+      <form id="form" novalidate>
         <div class="field">
-          <label class="label">邮箱</label>
-          <input class="input" id="email" type="email" autocomplete="email"
-                 placeholder="you@example.com" required>
+          <label class="label">手机号</label>
+          <input class="input" id="mobile" type="tel" autocomplete="tel" inputmode="numeric"
+                 maxlength="11" placeholder="11 位手机号" required>
         </div>
+
         <div class="field">
-          <label class="label">昵称 <span class="muted" style="font-weight:400">选填</span></label>
-          <input class="input" id="username" type="text" maxlength="32" placeholder="怎么称呼你">
+          <label class="label">短信验证码</label>
+          <div class="input-row">
+            <input class="input" id="smsCode" type="text" maxlength="6" autocomplete="one-time-code"
+                   inputmode="numeric" placeholder="6 位数字" required>
+            <button class="btn" id="sendCode" type="button">获取验证码</button>
+          </div>
+          <div class="hint" id="smsTip">点「获取验证码」，我们会把 6 位数字发到这个手机号</div>
         </div>
+
+        <!-- 图形码兜底：只有极验未配置时才会出现 -->
+        <div class="field" id="capField" hidden>
+          <label class="label">图形验证码</label>
+          <div class="input-row">
+            <input class="input" id="capCode" type="text" maxlength="4" autocomplete="off"
+                   placeholder="右侧 4 位">
+            <img class="cap-img" id="capImg" alt="验证码" title="点击刷新">
+          </div>
+        </div>
+
         <div class="field">
           <label class="label">密码</label>
           <input class="input" id="password" type="password" autocomplete="new-password"
@@ -63,31 +85,25 @@
           <div class="strength"><i id="sbar"></i></div>
           <div class="hint" id="stip">建议字母 + 数字组合</div>
         </div>
-        <div class="field" id="capField">
-          <label class="label">人机验证</label>
-          <div class="gt-box" id="gtBox" hidden>
-            <button class="btn btn-block" id="gtBtn" type="button">点击完成安全验证</button>
-            <div class="gt-done" id="gtDone" hidden><span class="gt-tick">✓</span>已完成验证</div>
-          </div>
-          <div class="cap-row" id="imgRow" hidden>
-            <input class="input" id="capCode" type="text" maxlength="4" autocomplete="off"
-                   inputmode="text" placeholder="输入右侧 4 位">
-            <img class="cap-img" id="capImg" alt="验证码" title="点击刷新">
-          </div>
-          <div class="hint" id="capTip">点按钮完成安全验证</div>
+
+        <div class="field">
+          <label class="label">确认密码</label>
+          <input class="input" id="password2" type="password" autocomplete="new-password"
+                 placeholder="再输一次" required>
+          <div class="hint" id="p2tip"></div>
         </div>
-        <div class="field" id="mailField">
-          <label class="label">邮箱验证码</label>
-          <div class="cap-row">
-            <input class="input" id="mailCode" type="text" maxlength="6" autocomplete="one-time-code"
-                   inputmode="numeric" placeholder="6 位数字">
-            <button class="btn" id="sendCode" type="button" style="flex:0 0 auto;min-width:112px">获取验证码</button>
-          </div>
-          <div class="hint" id="mailTip">点「获取验证码」，我们会发到上面的邮箱</div>
+
+        <div class="field">
+          <label class="label">昵称 <span class="muted" style="font-weight:400">选填</span></label>
+          <input class="input" id="username" type="text" maxlength="32" placeholder="怎么称呼你">
         </div>
-        <button class="btn btn-primary btn-lg btn-block mt16" id="submit" type="submit">注册并登录</button>
+
+        <button class="btn btn-primary btn-lg btn-block mt8" id="submit" type="submit">注册并登录</button>
+        <p class="hint center mt12" style="color:var(--muted)">
+          注册即表示同意《用户协议》与《隐私政策》
+        </p>
       </form>
-      <p class="sub center mt24">已有账号？<a href="/login" style="color:var(--brand);font-weight:600">直接登录</a></p>
+      <p class="sub center mt16">已有账号？<a href="/login" style="color:var(--brand);font-weight:600">直接登录</a></p>
     </div>
   </div>
   <div class="right">
@@ -98,15 +114,27 @@
 </div>
 <!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
 <script src="/config.js"></script>
-<script src="/assets/js/core.js?v=20261025"></script>
+<script src="/assets/js/core.js?v=20261026"></script>
 <script>
 (function () {
   get('/api/auth/me').then(() => { location.href = '/studio'; }).catch(() => {});
 
-  const pwd = $('#password'), sbar = $('#sbar'), stip = $('#stip');
+  const $mob = $('#mobile'), $code = $('#smsCode'), $send = $('#sendCode');
+  const pwd = $('#password'), pwd2 = $('#password2');
+  const MOBILE_RE = /^1[3-9]\d{9}$/;
 
-  /* ---------------- 人机验证（极验 v4，未配置时自动退回图形码） ---------------- */
-  let capOn = false, capImgOn = false, capId = '';
+  function normMobile(v) { return (v || '').replace(/\D/g, '').slice(0, 11); }
+
+  $mob.addEventListener('input', () => {
+    const clean = normMobile($mob.value);
+    if (clean !== $mob.value) $mob.value = clean;
+  });
+  $code.addEventListener('input', () => {
+    $code.value = $code.value.replace(/\D/g, '').slice(0, 6);
+  });
+
+  /* ---------------- 人机验证（极验 v4，未配置时退回图形码） ---------------- */
+  let capImgOn = false, capId = '';
 
   async function loadImageCaptcha() {
     const img = $('#capImg');
@@ -114,147 +142,111 @@
     img.classList.add('loading');
     try {
       const r = await get('/api/auth/captcha');
-      if (!r || r.enabled === false) { $('#imgRow').hidden = true; return; }
+      if (!r || r.enabled === false) { $('#capField').hidden = true; capImgOn = false; return; }
       capId = r.id;
       img.src = r.image;
       $('#capCode').value = '';
     } catch (err) {
-      $('#capTip').textContent = '验证码加载失败（' + ((err && err.message) || err) + '），点图片重试';
+      toast('验证码加载失败，点图片重试', 'bad');
     } finally {
       img.classList.remove('loading');
     }
   }
 
+  let capReady = null;
   async function initCaptcha() {
-    const mode = await Gt4.init();
-    if (mode === 'off') {
-      capOn = false;
-      $('#capField').style.display = 'none';
-      return;
-    }
-    capOn = true;
-    if (mode === 'image') {
-      capImgOn = true;
-      $('#imgRow').hidden = false;
-      $('#capTip').textContent = '看不清？点一下图片换一张';
-      loadImageCaptcha();
-      $('#capImg').addEventListener('click', loadImageCaptcha);
-    } else if (mode === 'geetest-error') {
-      $('#gtBox').hidden = false;
-      $('#gtBtn').disabled = true;
-      $('#gtBtn').textContent = '安全验证加载失败';
-      $('#capTip').innerHTML = '<span style="color:var(--bad)">' +
-        '安全验证组件加载失败，请关闭广告拦截插件后刷新页面，或换用 Chrome / Edge 重试</span>';
-    } else {
-      $('#gtBox').hidden = false;
-      $('#capTip').textContent = '点击按钮，按提示完成滑块验证';
-    }
+    if (capReady) return capReady;
+    capReady = (async () => {
+      const mode = await Gt4.init();
+      if (mode === 'image') {
+        capImgOn = true;
+        $('#capField').hidden = false;
+        loadImageCaptcha();
+        $('#capImg').addEventListener('click', loadImageCaptcha);
+      }
+    })();
+    return capReady;
   }
   initCaptcha();
 
-  /* 取一次验证凭据：极验返回四参，图形码返回 {image:true}，用户取消返回 null */
-  let capCache = null, capCacheAt = 0;
-
-  function flashDone() {
-    const btn = $('#gtBtn'), done = $('#gtDone');
-    btn.hidden = true; done.hidden = false;
-    setTimeout(() => { btn.hidden = false; done.hidden = true; }, 1600);
-  }
-
-  async function runGt() {
-    // 页面刚打开、配置还没拉回来时用户就点按钮，兜一下
-    if (Gt4.mode === 'off') await initCaptcha();
+  /* 取一次验证凭据：极验弹滑块，图形码读输入框，用户取消返回 null */
+  async function grabCaptcha() {
+    if (Gt4.mode === 'off' && !capReady) await initCaptcha();
+    if (capImgOn) {
+      const c = $('#capCode').value.trim();
+      if (!c) { toast('请先填写右侧的图形验证码', 'warn'); $('#capCode').focus(); return null; }
+      return { captcha_id: capId, captcha_code: c };
+    }
+    if (Gt4.mode === 'off') return {};
     const p = await Gt4.run();
     if (!p) {
-      if (Gt4.mode === 'geetest-error') toast('安全验证组件加载失败，请刷新页面重试', 'bad');
+      if (Gt4.mode === 'geetest-error') {
+        toast('安全验证组件加载失败，请关闭广告拦截插件后刷新页面', 'bad');
+      }
       return null;
     }
-    // 极验参数只能用一次，先缓存起来给紧接着的「获取验证码」用
-    capCache = Gt4.payload(p);
-    capCacheAt = Date.now();
-    flashDone();
-    return capCache;
+    if (p.image) return {};       // 图形码模式不该走到这里
+    return Gt4.payload(p);
   }
 
-  async function grabCaptcha() {
-    if (!capOn) return {};
-    if (capImgOn) {
-      const code = $('#capCode').value.trim();
-      if (!code) { toast('请先填写右侧的图形验证码', 'warn'); $('#capCode').focus(); return null; }
-      return { captcha_id: capId, captcha_code: code };
-    }
-    // 2 分钟内复用刚点按钮拿到的凭据，避免用户连点两次滑块
-    if (capCache && Date.now() - capCacheAt < 120000) {
-      const c = capCache; capCache = null;
-      return c;
-    }
-    return await runGt();
-  }
-
-  $('#gtBtn').addEventListener('click', () => { if (!capImgOn) runGt(); });
-
-  /* ---------------- 邮箱验证码 ---------------- */
-  let mailOn = true, coolTimer = null;
+  /* ---------------- 发短信验证码 ---------------- */
+  let coolTimer = null;
 
   function startCooldown(sec) {
-    const btn = $('#sendCode');
     let left = sec;
-    btn.disabled = true;
-    btn.textContent = left + ' 秒后重发';
+    $send.disabled = true;
+    $send.textContent = left + ' 秒后重发';
     clearInterval(coolTimer);
     coolTimer = setInterval(() => {
       left -= 1;
       if (left <= 0) {
         clearInterval(coolTimer);
-        btn.disabled = false;
-        btn.textContent = '重新获取';
+        $send.disabled = false;
+        $send.textContent = '重新获取';
       } else {
-        btn.textContent = left + ' 秒后重发';
+        $send.textContent = left + ' 秒后重发';
       }
     }, 1000);
   }
 
   async function sendCode() {
-    const email = $('#email').value.trim();
-    if (!email) { toast('请先填写邮箱', 'warn'); $('#email').focus(); return; }
+    const mobile = normMobile($mob.value);
+    if (!MOBILE_RE.test(mobile)) {
+      toast('请填写正确的 11 位手机号', 'warn');
+      $mob.focus();
+      return;
+    }
     const cap = await grabCaptcha();
     if (cap === null) return;
-    const btn = $('#sendCode');
-    btn.disabled = true; btn.textContent = '发送中…';
+
+    $send.disabled = true;
+    $send.textContent = '发送中…';
     try {
-      const r = await post('/api/auth/email-code', {
-        email: email,
-        purpose: 'register',
-        ...cap,
+      const r = await post('/api/auth/sms-code', {
+        mobile: mobile, purpose: 'register', ...cap,
       });
       startCooldown(r.cooldown || 60);
-      $('#mailCode').focus();
+      $code.focus();
       if (r.echo) {
-        // 演示模式：没配 SMTP，验证码直接回显，方便先把流程走通
-        $('#mailCode').value = r.dev_code || '';
-        $('#mailTip').innerHTML = '<span style="color:var(--warn)">演示模式：邮件服务未配置，验证码已自动填入（' +
-          (r.dev_code || '') + '）</span>';
+        // 本地调试（未配短信宝 + SMS_ECHO=1）：验证码直接回显
+        $code.value = r.dev_code || '';
+        $('#smsTip').innerHTML = '<span style="color:var(--warn)">演示模式：短信通道未配置，验证码已自动填入</span>';
         toast('演示模式：验证码已填入', 'warn');
       } else {
-        $('#mailTip').textContent = '已发送到 ' + email + '，' + Math.round((r.ttl || 600) / 60) + ' 分钟内有效';
+        $('#smsTip').textContent = '已发送至 ' + (r.mobile || mobile) +
+          '，' + (r.ttl_minutes || 5) + ' 分钟内有效';
         toast('验证码已发送', 'ok');
       }
     } catch (err) {
-      btn.disabled = false; btn.textContent = '获取验证码';
+      $send.disabled = false;
+      $send.textContent = '获取验证码';
       toast(err.message || '发送失败', 'bad');
       if (capImgOn) loadImageCaptcha();
     }
   }
+  $send.addEventListener('click', sendCode);
 
-  $('#sendCode').addEventListener('click', sendCode);
-
-  // 后端可以整体关掉邮箱验证（EMAIL_CODE_REQUIRED=0），那就把这一栏藏起来
-  get('/api/auth/mail/config').then((r) => {
-    if (r && r.email_code_required === false) {
-      mailOn = false;
-      $('#mailField').style.display = 'none';
-    }
-  }).catch(() => {});
+  /* ---------------- 密码强度 / 一致性 ---------------- */
   pwd.addEventListener('input', () => {
     const v = pwd.value;
     let score = 0;
@@ -270,44 +262,58 @@
       ['100%', 'var(--ok)', '很安全'],
     ];
     const [w, c, t] = map[Math.min(score, 4)];
-    sbar.style.width = w; sbar.style.background = c; stip.textContent = t;
+    $('#sbar').style.width = w;
+    $('#sbar').style.background = c;
+    $('#stip').textContent = t;
+    checkSame();
   });
 
+  function checkSame() {
+    const tip = $('#p2tip');
+    if (!pwd2.value) { tip.textContent = ''; return; }
+    const same = pwd.value === pwd2.value;
+    tip.textContent = same ? '两次输入一致' : '两次输入的密码不一样';
+    tip.style.color = same ? 'var(--ok)' : 'var(--bad)';
+  }
+  pwd2.addEventListener('input', checkSame);
+
+  /* ---------------- 提交 ---------------- */
   $('#form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const mobile = normMobile($mob.value);
+    if (!MOBILE_RE.test(mobile)) { toast('请填写正确的 11 位手机号', 'warn'); $mob.focus(); return; }
+    if (!/^\d{6}$/.test($code.value.trim())) {
+      toast('请填写 6 位短信验证码', 'warn'); $code.focus(); return;
+    }
+    if (pwd.value.length < 6) { toast('密码至少 6 位', 'warn'); pwd.focus(); return; }
+    if (pwd.value !== pwd2.value) { toast('两次输入的密码不一样', 'warn'); pwd2.focus(); return; }
+
     const btn = $('#submit');
-    const mailEl = $('#mailCode');
-    if (mailOn && !mailEl.value.trim()) {
-      toast('请先获取并填写邮箱验证码', 'warn');
-      mailEl.focus();
-      return;
-    }
-    // 有邮箱验证码时注册接口只校验邮箱码；关掉邮件时才需要人机验证
-    let cap = {};
-    if (!mailOn) {
-      cap = await grabCaptcha();
-      if (cap === null) return;
-    }
     btn.disabled = true; btn.textContent = '创建中…';
     try {
       await post('/api/auth/register', {
-        email: $('#email').value.trim(),
+        mobile: mobile,
+        password: pwd.value,
+        sms_code: $code.value.trim(),
         username: $('#username').value.trim(),
-        password: $('#password').value,
-        email_code: mailEl.value.trim(),
-        ...cap,
       });
       toast('注册成功，已经登录', 'ok');
       setTimeout(() => { location.href = '/studio'; }, 380);
     } catch (err) {
       btn.disabled = false; btn.textContent = '注册并登录';
       toast(err.message || '注册失败', 'bad');
-      // 图形码/邮箱码都是一次性的，失败后顺手换一张，省得用户再点一次
       if (capImgOn) loadImageCaptcha();
-      if (!/已注册/.test(err.message || '')) mailEl.focus();
+      if (/验证码/.test(err.message || '')) { $code.focus(); $code.select(); }
     }
   });
-  $('#email').focus();
+
+  get('/api/auth/sms/config').then((r) => {
+    if (r && r.configured === false && !r.echo_mode) {
+      $('#smsTip').innerHTML = '<span style="color:var(--bad)">短信通道未配置，收不到验证码，请联系管理员</span>';
+    }
+  }).catch(() => {});
+
+  $mob.focus();
 })();
 </script>
 </body>

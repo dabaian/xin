@@ -99,3 +99,6 @@ api_limiter = RateLimiter(limit=60, window=60)
 captcha_limiter = RateLimiter(limit=40, window=300)
 # 发信按 IP 限速，防止被人拿来刷爆邮箱配额
 email_limiter = RateLimiter(limit=20, window=3600)
+# 发短信按 IP 限速。短信是真金白银，比邮箱更严；
+# 单手机号维度的限速在 smscode.py 里（60 秒冷却 + 每小时 5 条）。
+sms_limiter = RateLimiter(limit=12, window=3600)

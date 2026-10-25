@@ -31,6 +31,13 @@ function apiUrl(path) {
 /* 媒体/图片/视频地址同样要走 apiUrl，语义化的别名 */
 const mediaUrl = apiUrl;
 
+/* 手机号打码：13800138000 → 138****8000。界面上不裸奔完整号码 */
+function maskMobile(m) {
+  const s = String(m || '').replace(/\D/g, '');
+  if (s.length !== 11) return '';
+  return s.slice(0, 3) + '****' + s.slice(7);
+}
+
 /* ---------------------------------------------------------------- 请求 */
 async function api(path, opts = {}) {
   const init = {
@@ -197,7 +204,9 @@ function buildLayout(active, user, title) {
     ? `<div class="nav-group">运营</div>
        <a class="nav-item ${active === 'admin' ? 'active' : ''}" href="/admin">${ICON.admin}<span>管理后台</span></a>`
     : '';
-  const initial = (user?.username || user?.email || 'U').slice(0, 1).toUpperCase();
+  const initial = (user?.username || user?.account || user?.email || 'U').slice(0, 1).toUpperCase();
+  // 侧栏副标题显示手机号（中间四位打码），没有手机号的老账号退回邮箱
+  const subAccount = maskMobile(user?.mobile) || user?.email || '';
 
   document.body.insertAdjacentHTML('afterbegin', `
     <div class="app">
@@ -216,7 +225,7 @@ function buildLayout(active, user, title) {
             <div class="avatar">${initial}</div>
             <div style="min-width:0;flex:1">
               <div class="ellipsis" style="font-weight:600;font-size:13px">${user?.username || '未登录'}</div>
-              <div class="ellipsis muted" style="font-size:11.5px">${user?.email || ''}</div>
+              <div class="ellipsis muted" style="font-size:11.5px">${subAccount}</div>
             </div>
           </div>
         </div>

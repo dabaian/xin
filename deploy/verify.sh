@@ -57,7 +57,7 @@ echo
 
 # ---------------------------------------------------------------- 4. 页面
 echo "[4/7] 页面可访问"
-for p in / /login /register /studio /tasks /wallet /library /download /admin; do
+for p in / /login /register /forgot /studio /tasks /wallet /library /download /admin; do
   CODE="$(curl -o /dev/null -s -w '%{http_code}' --max-time 10 "$BASE$p" 2>/dev/null || echo 000)"
   if [[ "$CODE" == "200" ]]; then ok "GET $p → 200"
   else bad "GET $p → $CODE"; fi
@@ -75,8 +75,10 @@ if [[ -f "$ENVF" ]]; then
   AI="$(getv ALIPAY_APP_ID)"
   MOCK="$(getv ALIPAY_MOCK)"
   ECHO="$(getv MAIL_ECHO)"
+  SMSECHO="$(getv SMS_ECHO)"
   CH="$(getv PAYMENT_CHANNEL)"
-  SMTP="$(getv SMTP_HOST)"
+  SMSUSER="$(getv SMSBAO_USER)"
+  SMSKEY="$(getv SMSBAO_KEY)"
   ENV="$(getv APP_ENV)"
 
   if [[ "$PB" == https://* ]]; then ok "PUBLIC_BASE = $PB"
@@ -101,8 +103,11 @@ if [[ -f "$ENVF" ]]; then
       bad "ALIPAY_MOCK=1 → 生产环境会拒绝启动（等于白送积分），改成 0"
     else ok "ALIPAY_MOCK=0"; fi
     if [[ "$ECHO" == "1" ]]; then
-      bad "MAIL_ECHO=1 → 生产环境会拒绝启动（等于没验证邮箱），改成 0"
+      bad "MAIL_ECHO=1 → 生产环境会拒绝启动（等于没验证），改成 0"
     else ok "MAIL_ECHO=0"; fi
+    if [[ "$SMSECHO" == "1" ]]; then
+      bad "SMS_ECHO=1 → 生产环境会拒绝启动（等于任何人都能注册任意手机号），改成 0"
+    else ok "SMS_ECHO=0"; fi
     if [[ "$CH" == "mock" ]]; then
       bad "PAYMENT_CHANNEL=mock → 生产环境会拒绝启动，改成 alipay 或 none"
     else ok "PAYMENT_CHANNEL=${CH:-自动}"; fi
@@ -110,9 +115,13 @@ if [[ -f "$ENVF" ]]; then
     warn "APP_ENV=$ENV（非生产环境）→ 模拟开关仍可显式开启，上线前记得切 prod"
   fi
 
-  if [[ -z "$SMTP" ]]; then
-    warn "SMTP_HOST 未填 → 邮箱验证码发不出去，生产环境会拒绝启动（或设 EMAIL_CODE_REQUIRED=0）"
-  else ok "SMTP_HOST = $SMTP"; fi
+  if [[ -z "$SMSUSER" || -z "$SMSKEY" ]]; then
+    bad "SMSBAO_USER / SMSBAO_KEY 未填 → 注册与找回密码都会失败，生产环境会拒绝启动"
+  elif [[ ${#SMSKEY} -ne 32 ]]; then
+    warn "SMSBAO_KEY 不是 32 位（当前 ${#SMSKEY} 位）→ 应填登录密码的 32 位 MD5，否则会返回 30"
+  else
+    ok "短信宝 = $SMSUSER（密钥 32 位 MD5）"
+  fi
 
   for k in alipay_private_key.pem alipay_public_key.pem; do
     if [[ -f "$APP_DIR/secrets/$k" ]]; then

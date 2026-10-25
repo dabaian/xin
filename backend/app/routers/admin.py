@@ -88,13 +88,13 @@ def overview(user=Depends(admin_only), conn=Depends(db.get_db)):
 @router.get("/users")
 def users(keyword: str = "", limit: int = 30, offset: int = 0,
           user=Depends(admin_only), conn=Depends(db.get_db)):
-    sql = ("SELECT u.id, u.email, u.username, u.role, u.status, u.created_at, u.last_login_at, "
-           "w.available_points, w.frozen_points, w.total_recharged FROM users u "
-           "LEFT JOIN wallets w ON w.user_id = u.id WHERE 1=1")
+    sql = ("SELECT u.id, u.mobile, u.email, u.username, u.role, u.status, u.created_at, "
+           "u.last_login_at, w.available_points, w.frozen_points, w.total_recharged "
+           "FROM users u LEFT JOIN wallets w ON w.user_id = u.id WHERE 1=1")
     args: list = []
     if keyword:
-        sql += " AND (u.email LIKE ? OR u.username LIKE ?)"
-        args += ["%" + keyword + "%", "%" + keyword + "%"]
+        sql += " AND (u.mobile LIKE ? OR u.email LIKE ? OR u.username LIKE ?)"
+        args += ["%" + keyword + "%", "%" + keyword + "%", "%" + keyword + "%"]
     sql += " ORDER BY u.id DESC LIMIT ? OFFSET ?"
     args += [max(1, min(limit, 100)), offset]
     rows = conn.execute(sql, tuple(args)).fetchall()

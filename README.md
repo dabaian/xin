@@ -192,11 +192,20 @@ curl -b cookie.txt http://127.0.0.1:8080/api/payments/selfcheck
 
 ## 8. 注册与登录验证
 
-注册要过**人机验证 + 邮箱验证码**，登录支持**密码登录**和**邮箱验证码登录**两套。
+账号体系是 **手机号 + 密码**，验证码走**短信**：
+
+| 场景 | 流程 |
+|---|---|
+| 注册 | 填手机号 → 过极验滑块 → 收 6 位短信码 → 设密码 → 完成并自动登录 |
+| 登录 | 手机号 + 密码 |
+| 找回密码 | 填手机号 → 过极验滑块 → 收 6 位短信码 → 设新密码 → 用新密码登录 |
+
+注册成功照旧送 `SIGNUP_BONUS`（默认 20 积分）。密码重置后，该账号在所有设备上的
+旧会话会立即失效。
 
 ### 8.1 人机验证（极验 GeeTest v4）
 
-默认走**极验滑块**，挡脚本批量注册和刷邮箱配额：
+默认走**极验滑块**，挡脚本批量注册和刷短信配额（短信是真金白银，这一层不能省）：
 
 - 前端从 `https://static.geetest.com/v4/gt4.js` 加载组件，用户拖动滑块完成验证
 - 前端只拿到 4 个参数（`lot_number` / `captcha_output` / `pass_token` / `gen_time`），
@@ -225,43 +234,52 @@ CAPTCHA_PROVIDER=auto   # auto=配了极验用极验 / geetest / image / off
 排查一句话：`curl /api/auth/captcha/config`，返回 `provider: "geetest"` 即表示极验生效；
 返回 `image` 说明 ID/KEY 没读到。
 
-### 8.2 邮箱验证码
+### 8.2 短信验证码（短信宝）
 
-| 场景 | 流程 |
-|---|---|
-| 注册 | 填邮箱 → 过极验 → 收 6 位邮箱码 → 带码注册 |
-| 登录 | 切到「验证码登录」→ 填邮箱 → 过极验 → 收码 → 登录 |
+通道是**短信宝**，官方文档 <https://www.smsbao.com/openapi/213.html>。
+接口：`GET https://api.smsbao.com/sms?u=&p=&m=&c=`，返回纯文本，`0` 为成功。
 
-- 6 位数字，只存哈希，有效期 10 分钟（`EMAIL_CODE_TTL`）
-- 同一邮箱 **60 秒冷却**、**每小时最多 5 封**，单张码最多试 **5 次**
-- 用一次即作废；换发新码会让旧码失效
-- 注册时邮箱必须**没被占用**，登录时邮箱必须**已注册**，两种情况都不暴露多余信息
-- 注册成功照旧送 `SIGNUP_BONUS`（默认 20 积分）
-
-配 SMTP 才会真发信：
+- 6 位数字，只存 SHA-256 哈希，有效期 5 分钟（`SMS_CODE_TTL`）
+- 同一手机号 **60 秒冷却**、**每小时最多 5 条**；同一 IP 每小时 20 条
+- 单张码最多试 **5 次**，超过即作废；用一次即作废
+- 注册时手机号必须**没被占用**，找回密码时手机号必须**已注册**
 
 ```bash
-SMTP_HOST=smtp.qq.com
-SMTP_PORT=465
-SMTP_USER=你的邮箱@qq.com
-SMTP_PASS=授权码           # 不是登录密码
-SMTP_FROM=                 # 留空用 SMTP_USER
-SMTP_SSL=1                 # 465 走 SSL；587 则 SSL=0 STARTTLS=1
-EMAIL_CODE_REQUIRED=1      # 设 0 则注册只校验人机验证
-MAIL_ECHO=0                # 没配 SMTP 时把验证码回显到页面，线上必须 0
+SMSBAO_USER=你的短信宝账号
+SMSBAO_KEY=登录密码的32位MD5      # 不是明文密码！填明文会返回 30
+SMSBAO_API=https://api.smsbao.com/sms
+SMS_TEMPLATE=【晟众远网络科技】您正在注册Viora AI平台账号，您的验证码是{code}，如非本人操作，请忽略本短信！
+SMS_TEMPLATE_RESET=【晟众远网络科技】您正在找回Viora AI平台账号密码，您的验证码是{code}，如非本人操作，请忽略本短信！
+SMS_CODE_TTL=300
+SMS_ECHO=0                        # 生产必须 0，写 1 会拒绝启动
 ```
 
-没配 SMTP 时**不会**自动把验证码回显出来，注册会明确报错「邮件服务还没配置」。
-本地调试要跑通注册流程，才临时把 `MAIL_ECHO` 改成 1 —— 此时验证码会回显在页面上
-（接口返回 `echo_code`），前端自动填入并弹提示。`APP_ENV=prod` 时打开 `MAIL_ECHO`
-会被启动守卫直接拒绝启动，不存在「线上误开」这种事故。
+**上线前必做**：到短信宝后台申请 **VIP 通道模板** 并联系客服报备。
+没报备的话接口照样返回 `0`、照样扣费，但手机收不到 —— 这是最容易误判成「代码有问题」的坑。
+
+配完先自检，别等到注册页试错：
+
+```bash
+cd backend
+python tools/smstest.py                 # 体检：账号、密钥形态、余额、模板长度
+python tools/smstest.py 13800138000     # 体检 + 真发一条（扣 1 条余额）
+```
+
+完整排错表见 [docs/短信配置.md](docs/短信配置.md)。
 
 接口一览：`GET /api/auth/captcha/config`（人机验证方式）、`GET /api/auth/captcha`（图形码兜底）、
-`GET /api/auth/mail/config`、`POST /api/auth/email-code`、
-`POST /api/auth/register`、`POST /api/auth/login`（`mode=password|code`）。
+`GET /api/auth/sms/config`、`POST /api/auth/sms-code`、
+`POST /api/auth/register`、`POST /api/auth/login`、`POST /api/auth/reset-password`。
 
-要换成短信验证码的话，把 `emailcode.issue/verify` 换成短信服务商的接口即可，
-注册/登录接口的字段名 `email_code` 可以继续用。
+### 8.3 老账号兼容
+
+数据库里仍保留 `email` 字段（`NOT NULL UNIQUE`）。手机号注册的账号写入
+`138xxxxxxxx@mobile.invalid` 作为占位（`.invalid` 是 RFC 2606 保留域名，永远不是真实邮箱），
+所以老用户的数据不动、也不用重建表。
+
+登录接口的 `account` 字段依次按 **手机号 → 邮箱 → 用户名** 匹配，
+所以之前用邮箱注册的老用户仍然可以「邮箱 + 密码」登录；只是找回密码只支持手机号，
+没有绑定手机号的老账号需要管理员在后台重置密码。
 
 ---
 
@@ -291,9 +309,10 @@ MAIL_ECHO=0                # 没配 SMTP 时把验证码回显到页面，线上
 **[`docs/接入说明.md`](docs/接入说明.md)**。
 模拟能力关闭到什么程度、生产必填项、启动失败怎么对，见
 **[`docs/上线检查.md`](docs/上线检查.md)**。
-邮件发不出去 / 注册页提示「邮件服务还没配置」，见
-**[`docs/邮件配置.md`](docs/邮件配置.md)**（QQ / 163 / 企业邮参数表 + 授权码怎么拿 + 报错对照），
-配完跑 `cd backend && python tools/mailtest.py 你的邮箱@example.com` 自检。
+短信收不到 / 返回码看不懂 / 模板要不要报备，见
+**[`docs/短信配置.md`](docs/短信配置.md)**（接口参数、MD5 生成、返回码对照、排查清单），
+配完跑 `cd backend && python tools/smstest.py 你的手机号` 自检。
+（SMTP 已不参与注册，需要发通知邮件时看 **[`docs/邮件配置.md`](docs/邮件配置.md)**。）
 
 ---
 
@@ -306,9 +325,9 @@ MAIL_ECHO=0                # 没配 SMTP 时把验证码回显到页面，线上
 
 | 闸门 | 行为 |
 |---|---|
-| 生产环境开着模拟开关 | `ALIPAY_MOCK=1` / `MAIL_ECHO=1` / `PAYMENT_CHANNEL=mock` 任一命中 → **进程直接退出**，退出码 2，不会带病运行 |
+| 生产环境开着模拟开关 | `ALIPAY_MOCK=1` / `MAIL_ECHO=1` / `SMS_ECHO=1` / `PAYMENT_CHANNEL=mock` 任一命中 → **进程直接退出**，退出码 2，不会带病运行 |
 | 模拟通道不注册 | `APP_ENV=prod` 时 `MockAdapter` 根本不进 `REGISTRY`，`/api/payments/mock-pay` 压根不存在（不是 404，是没这条路由） |
-| 关键配置缺失 | 缺上游密钥 / 管理员密码 / 支付参数 / SMTP → 同样拒绝启动，避免「能打开但什么都干不了」 |
+| 关键配置缺失 | 缺管理员密码 / 短信宝账号 / 支付参数（未显式关闭时）→ 同样拒绝启动，避免「能打开但什么都干不了」 |
 
 启动后被拒绝时，终端会直接列出还缺哪几项、每项该怎么改，不用猜。
 
@@ -316,24 +335,27 @@ MAIL_ECHO=0                # 没配 SMTP 时把验证码回显到页面，线上
 
 | 配置 | 缺了会怎样 |
 |---|---|
-| `MUSE_KEY` | 所有生成任务失败 |
+| `SMSBAO_USER` / `SMSBAO_KEY` | 注册和找回密码全挂（短信验证码是必经步骤）；生产环境会**拒绝启动** |
 | `ADMIN_PASSWORD` | 拒绝启动（不再回落到内置默认口令） |
-| `ALIPAY_APP_ID` / `ALIPAY_PRIVATE_KEY_PATH` / `ALIPAY_PUBLIC_KEY_PATH` | 用户点充值报错；不想开充值就写 `PAYMENT_CHANNEL=none` |
-| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` | 注册全挂（邮箱验证码是必经步骤）；不想用邮箱验证就设 `EMAIL_CODE_REQUIRED=0` |
-| `PUBLIC_BASE`（https） | Cookie 不带 Secure，支付宝回调要求 https |
+| `MUSE_KEY` | 页面能开，但所有生成任务失败。默认只告警；设 `MUSE_REQUIRED=1` 可改为拒绝启动 |
+| `ALIPAY_APP_ID` / `ALIPAY_PRIVATE_KEY_PATH` / `ALIPAY_PUBLIC_KEY_PATH` | 用户点充值报错；不开放充值就写 `PAYMENT_CHANNEL=none` |
+| `PUBLIC_BASE`（https） | Cookie 不带 Secure，账号会话在 https 站上会掉 |
 
 ### 10.3 启动日志自查
 
 ```
-运行状态：Viora AI · 环境 PROD · 支付宝当面付（真实收款） · SMTP 已配置
+运行状态：Viora AI · 环境 PROD · 充值已关闭（PAYMENT_CHANNEL=none ...） · 短信宝已配置（账号）
+人机验证：极验 v4（captcha_id 15db894a…）
+短信通道：短信宝（账号 xxx，验证码 5 分钟有效）
 ```
 
 出现下面任一条，就是还没配好：
 
 - `【模拟支付】不会真收钱` → 生产环境根本起不来，除非 `APP_ENV` 不是 prod
 - `充值已关闭（...）` → 没有可用支付通道，或显式 `PAYMENT_CHANNEL=none`
-- `【验证码回显】未配置 SMTP` → 验证码直接显示在页面上，等于没验证
-- `SMTP 未配置，邮箱验证码将发不出去` → 注册会失败
+- `【验证码回显】未配置短信宝` → 验证码直接显示在页面上，等于没验证
+- `短信宝未配置（SMSBAO_USER / SMSBAO_KEY），注册与找回密码都会失败` → 注册走不通
+- `MUSE_KEY 未配置：页面能开，但所有生成任务都会失败` → 补上游密钥
 
 ### 10.4 想跑验收又不想真付钱
 

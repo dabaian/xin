@@ -58,6 +58,14 @@ def mail_echo_on() -> bool:
     return bool(CFG.mail_echo) and mock_allowed()
 
 
+def sms_echo_on() -> bool:
+    return bool(CFG.sms_echo) and mock_allowed()
+
+
+def sms_ready() -> bool:
+    return bool(CFG.smsbao_user and CFG.smsbao_key)
+
+
 # ------------------------------------------------------------------ 检查项
 def violations() -> list[tuple[str, str]]:
     """生产环境下的阻断级问题：[(配置项, 怎么改)]，空列表表示通过。"""
@@ -72,23 +80,28 @@ def violations() -> list[tuple[str, str]]:
     if CFG.mail_echo:
         bad.append(("MAIL_ECHO=1",
                     "生产环境禁止回显验证码（等于绕过邮箱验证）→ 删除这行或改成 0"))
+    if CFG.sms_echo:
+        bad.append(("SMS_ECHO=1",
+                    "生产环境禁止回显短信验证码（等于任何人都能注册任意手机号）"
+                    "→ 删除这行或改成 0"))
     if (CFG.payment_channel or "").strip().lower() == "mock":
         bad.append(("PAYMENT_CHANNEL=mock",
                     "生产环境禁止模拟通道 → 改成 alipay，或写 none 关闭充值"))
 
-    if not CFG.muse_key:
+    if not CFG.muse_key and CFG.muse_required:
         bad.append(("MUSE_KEY=(空)",
-                    "没配上游号池密钥，所有生成任务都会失败 → 填上密钥"))
+                    "MUSE_REQUIRED=1 表示要求上游必须可用，但没填号池密钥 → "
+                    "填上 MUSE_KEY，或把 MUSE_REQUIRED 改回 0"))
 
     if not CFG.admin_password:
         bad.append(("ADMIN_PASSWORD=(空)",
                     "没配管理员密码会落到内置默认口令 → 设一个强密码"))
 
-    if CFG.email_code_required and not mail_ready():
-        bad.append(("SMTP_*=未配置",
-                    "邮箱验证码是注册/登录的必经步骤，但 SMTP 没配，"
-                    "等于注册全挂 → 配好 SMTP_HOST/USER/PASS，"
-                    "或设 EMAIL_CODE_REQUIRED=0 改为只校验图形码"))
+    if CFG.mobile_required and not sms_ready():
+        bad.append(("SMSBAO_USER / SMSBAO_KEY=(空)",
+                    "手机号注册要靠短信验证码，但短信宝账号没配，"
+                    "等于注册和找回密码全挂 → 填上短信宝账号和密钥，"
+                    "或设 MOBILE_REQUIRED=0 退回邮箱注册"))
 
     if not payment_off() and not CFG.alipay_ready:
         bad.append(("ALIPAY_APP_ID/密钥=(空)",
@@ -103,15 +116,20 @@ def warnings() -> list[str]:
     out: list[str] = []
     if not is_prod():
         on = [n for n, v in (("ALIPAY_MOCK", CFG.alipay_mock),
-                             ("MAIL_ECHO", CFG.mail_echo)) if v]
+                             ("MAIL_ECHO", CFG.mail_echo),
+                             ("SMS_ECHO", CFG.sms_echo)) if v]
         out.append("当前不是生产环境（APP_ENV=%s），启动守卫不介入；"
-                   "模拟开关由 ALIPAY_MOCK / MAIL_ECHO 单独控制，当前%s"
+                   "模拟开关由 ALIPAY_MOCK / MAIL_ECHO / SMS_ECHO 单独控制，当前%s"
                    % (CFG.app_env or "未设置",
                       "均为关闭" if not on else "开启项：" + "、".join(on)))
         return out
 
-    if not mail_ready() and not CFG.email_code_required:
-        out.append("邮箱验证码已关闭（EMAIL_CODE_REQUIRED=0），注册只校验人机验证")
+    if not sms_ready():
+        out.append("短信宝未配置（SMSBAO_USER / SMSBAO_KEY），"
+                   "注册与找回密码都会失败")
+    if not CFG.muse_key:
+        out.append("MUSE_KEY 未配置：页面能开，但所有生成任务都会失败，"
+                   "上线前必须填上号池密钥（或设 MUSE_REQUIRED=1 强制校验）")
     from . import captcha as captcha_mod
 
     if captcha_mod.provider() == "off":
@@ -191,8 +209,11 @@ def banner() -> str:
     else:
         pay = "%s（真实收款）" % adapter.name
 
-    mail = "SMTP 已配置" if mail_ready() else (
-        "【验证码回显】未配置 SMTP，验证码直接显示在页面上" if mail_echo_on()
-        else "SMTP 未配置，邮箱验证码将发不出去")
+    if sms_ready():
+        sms_way = "短信宝已配置（%s）" % (CFG.smsbao_user or "")
+    elif sms_echo_on():
+        sms_way = "【验证码回显】未配置短信宝，验证码直接显示在页面上"
+    else:
+        sms_way = "短信宝未配置，注册 / 找回密码的验证码发不出去"
 
-    return "%s · 环境 %s · %s · %s" % (CFG.app_name, env, pay, mail)
+    return "%s · 环境 %s · %s · %s" % (CFG.app_name, env, pay, sms_way)
