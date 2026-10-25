@@ -162,6 +162,8 @@
   }
 
   async function runGt() {
+    // 页面刚打开、配置还没拉回来时用户就点按钮，兜一下
+    if (Gt4.mode === 'off') await initCaptcha();
     const p = await Gt4.run();
     if (!p) {
       if (Gt4.mode === 'geetest-error') toast('安全验证组件加载失败，请刷新页面重试', 'bad');
