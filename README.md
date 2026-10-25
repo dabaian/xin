@@ -100,10 +100,14 @@ python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8080
 ```
 
-打开 <http://127.0.0.1:8080>，用 `.env` 里的 `ADMIN_USERNAME / ADMIN_PASSWORD` 登录（默认 `admin` / `admin888`）。
+打开 <http://127.0.0.1:8080>，用 `.env` 里的 `ADMIN_USERNAME / ADMIN_PASSWORD` 登录。
 
-没有支付宝密钥时，先设 `ALIPAY_MOCK=1` 把充值流程跑通：
-选套餐 → 弹二维码 → 点「模拟支付（测试模式）」→ 余额立刻到账。
+充值走**真实收款**：`.env` 里填好 `ALIPAY_APP_ID` + 两把密钥，重启后钱包页就能扫码付款，
+钱进你的支付宝商户账户，回调到账后积分立刻入账。
+
+> 本版本**不提供任何自动兜底**：没有商户参数时，钱包页直接显示「收款通道未配置」，
+> 下单接口返回 503，不会静默生成假二维码。模拟支付只在非生产环境显式开启
+> （`ALIPAY_MOCK=1`），且 `APP_ENV=prod` 时打开会被启动守卫拒绝启动。
 
 Windows 也可以直接双击 `start.bat`。
 
@@ -236,9 +240,10 @@ EMAIL_CODE_REQUIRED=1      # 设 0 则注册只校验图形码
 MAIL_ECHO=0                # 没配 SMTP 时把验证码回显到页面，线上必须 0
 ```
 
-没配 SMTP 且 `APP_ENV != prod` 时，服务自动进**演示模式**：验证码会直接回显在页面上
-（接口返回 `echo_code`），前端自动填入并弹提示，方便本地跑通全流程。线上务必配好 SMTP 并保持
-`MAIL_ECHO=0`，否则等于没验证。
+没配 SMTP 时**不会**自动把验证码回显出来，注册会明确报错「邮件服务还没配置」。
+本地调试要跑通注册流程，才临时把 `MAIL_ECHO` 改成 1 —— 此时验证码会回显在页面上
+（接口返回 `echo_code`），前端自动填入并弹提示。`APP_ENV=prod` 时打开 `MAIL_ECHO`
+会被启动守卫直接拒绝启动，不存在「线上误开」这种事故。
 
 接口一览：`GET /api/auth/captcha`、`GET /api/auth/mail/config`、`POST /api/auth/email-code`、
 `POST /api/auth/register`、`POST /api/auth/login`（`mode=password|code`）。
@@ -256,8 +261,9 @@ MAIL_ECHO=0                # 没配 SMTP 时把验证码回显到页面，线上
 
 | 通道 | 状态 | 怎么开 |
 |---|---|---|
-| 支付宝当面付 | 已实现，可直接上线 | 配 `ALIPAY_APP_ID` + 两个密钥 + `ALIPAY_NOTIFY_URL`，`ALIPAY_MOCK=0` |
-| 模拟支付 | 已实现，仅验收用 | `ALIPAY_MOCK=1` |
+| 支付宝当面付 | 已实现，可直接上线收真钱 | 配 `ALIPAY_APP_ID` + 两个密钥 + `ALIPAY_NOTIFY_URL` |
+| 关闭充值 | 合法状态 | `PAYMENT_CHANNEL=none`，钱包页显示「通道未开通」 |
+| 模拟支付 | **仅本地验收**，生产环境不注册 | `ALIPAY_MOCK=1`（`APP_ENV=prod` 时打开会拒绝启动） |
 | 微信 / 易支付 / 手工转账 | 留了扩展位 | 新建一个 `BaseAdapter` 子类 + 注册表加一行 + `PAYMENT_CHANNEL=xxx` |
 
 排查支付问题先看 `GET /api/payments/channels`（当前通道 + 每条通道是否就绪）。
@@ -271,10 +277,60 @@ MAIL_ECHO=0                # 没配 SMTP 时把验证码回显到页面，线上
 
 完整步骤（含密钥配置、回调三要求、联调验收、常见报错、加新通道的代码模板）见
 **[`docs/接入说明.md`](docs/接入说明.md)**。
+模拟能力关闭到什么程度、生产必填项、启动失败怎么对，见
+**[`docs/上线检查.md`](docs/上线检查.md)**。
+邮件发不出去 / 注册页提示「邮件服务还没配置」，见
+**[`docs/邮件配置.md`](docs/邮件配置.md)**（QQ / 163 / 企业邮参数表 + 授权码怎么拿 + 报错对照），
+配完跑 `cd backend && python tools/mailtest.py 你的邮箱@example.com` 自检。
 
 ---
 
-## 10. 已知边界
+## 10. 上线前自检（模拟能力已全部关闭）
+
+这个版本把「模拟 / 演示」的自动兜底**全部删掉了**，改成一处代码级的启动闸门：
+`backend/app/guard.py`。
+
+### 10.1 三道闸
+
+| 闸门 | 行为 |
+|---|---|
+| 生产环境开着模拟开关 | `ALIPAY_MOCK=1` / `MAIL_ECHO=1` / `PAYMENT_CHANNEL=mock` 任一命中 → **进程直接退出**，退出码 2，不会带病运行 |
+| 模拟通道不注册 | `APP_ENV=prod` 时 `MockAdapter` 根本不进 `REGISTRY`，`/api/payments/mock-pay` 压根不存在（不是 404，是没这条路由） |
+| 关键配置缺失 | 缺上游密钥 / 管理员密码 / 支付参数 / SMTP → 同样拒绝启动，避免「能打开但什么都干不了」 |
+
+启动后被拒绝时，终端会直接列出还缺哪几项、每项该怎么改，不用猜。
+
+### 10.2 生产环境必须齐的五项
+
+| 配置 | 缺了会怎样 |
+|---|---|
+| `MUSE_KEY` | 所有生成任务失败 |
+| `ADMIN_PASSWORD` | 拒绝启动（不再回落到内置默认口令） |
+| `ALIPAY_APP_ID` / `ALIPAY_PRIVATE_KEY_PATH` / `ALIPAY_PUBLIC_KEY_PATH` | 用户点充值报错；不想开充值就写 `PAYMENT_CHANNEL=none` |
+| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` | 注册全挂（邮箱验证码是必经步骤）；不想用邮箱验证就设 `EMAIL_CODE_REQUIRED=0` |
+| `PUBLIC_BASE`（https） | Cookie 不带 Secure，支付宝回调要求 https |
+
+### 10.3 启动日志自查
+
+```
+运行状态：Viora AI · 环境 PROD · 支付宝当面付（真实收款） · SMTP 已配置
+```
+
+出现下面任一条，就是还没配好：
+
+- `【模拟支付】不会真收钱` → 生产环境根本起不来，除非 `APP_ENV` 不是 prod
+- `充值已关闭（...）` → 没有可用支付通道，或显式 `PAYMENT_CHANNEL=none`
+- `【验证码回显】未配置 SMTP` → 验证码直接显示在页面上，等于没验证
+- `SMTP 未配置，邮箱验证码将发不出去` → 注册会失败
+
+### 10.4 想跑验收又不想真付钱
+
+只能在**非生产环境**：`APP_ENV=dev` + `ALIPAY_MOCK=1`，此时钱包页会出现
+「模拟支付」按钮，点一下直接到账。验收完把 `ALIPAY_MOCK` 改回 0。
+
+---
+
+## 11. 已知边界
 
 - **号池不支持取消**：已提交给上游的任务不能取消，只有还在排队（`QUEUED`）的能取消退款。
 - **Muse 实际固定渲染约 10 秒**：选 5 秒 / 15 秒只是提示词约束，不是硬切；按时长计价时注意这点。

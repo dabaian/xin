@@ -84,24 +84,19 @@ if [[ ! -f "$APP_DIR/.env" ]]; then
   sed -i "s#^ALIPAY_RETURN_URL=.*#ALIPAY_RETURN_URL=https://$DOMAIN/wallet#" "$APP_DIR/.env"
   ADMIN_PWD="$(head -c 18 /dev/urandom | base64 | tr -d '/+=' | head -c 14)"
   sed -i "s#^ADMIN_PASSWORD=.*#ADMIN_PASSWORD=$ADMIN_PWD#" "$APP_DIR/.env"
-  # 还没配支付宝密钥时，先开模拟支付，否则用户一分积分都充不进去、整个站点没法自测
-  if grep -q '^ALIPAY_APP_ID=$' "$APP_DIR/.env"; then
-    sed -i "s#^ALIPAY_MOCK=.*#ALIPAY_MOCK=1#" "$APP_DIR/.env"
-    MOCK_ON=1
-  else
-    MOCK_ON=0
-  fi
+  # 故意不自动开模拟支付：
+  #   · 生产环境（APP_ENV=prod）开 ALIPAY_MOCK 会被启动守卫拒绝，装了也起不来
+  #   · 「先开着跑，以后再关」正是白送积分的经典事故，这个口子直接不要
+  # 没配支付宝密钥时的表现：钱包页显示「收款通道未配置」，输入框置灰，下单 503。
   chmod 600 "$APP_DIR/.env"
   echo "==> 已生成 .env，管理员密码：$ADMIN_PWD"
-  echo "    ⚠️ 请立即记录，并补齐 MUSE_KEY / 支付宝相关配置"
-  if [[ "$MOCK_ON" == "1" ]]; then
-    echo "    ⚠️ 当前 ALIPAY_MOCK=1（模拟支付），配好支付宝密钥后务必改成 0"
-  fi
+  echo "    ⚠️ 请立即记录，并补齐 MUSE_KEY / SMTP / 支付宝相关配置"
+  echo "    没配支付宝密钥时充值不可用（不会走模拟支付），签好约后填密钥重启即可"
 else
   echo "==> 沿用已有 .env（未覆盖）"
   ADMIN_PWD="（见 $APP_DIR/.env）"
-  MOCK_ON="$(grep -c '^ALIPAY_MOCK=1' "$APP_DIR/.env" || true)"
 fi
+MOCK_ON="$(grep -c '^ALIPAY_MOCK=1' "$APP_DIR/.env" 2>/dev/null || true)"
 
 # ---------------------------------------------------------------- venv
 if [[ ! -d "$APP_DIR/venv" ]]; then
@@ -223,13 +218,15 @@ cat <<TIP
  重启        : systemctl restart viora-ai
  自检        : bash $APP_DIR/deploy/verify.sh $DOMAIN
 
- 还需要你补齐 3 件事（改完记得 restart）：
+ 还需要你补齐 4 件事（改完记得 restart）：
    1. MUSE_BASE / MUSE_KEY  → 指向你的 muse2api 号池
-   2. ALIPAY_APP_ID + 两个密钥文件 → 放到 $APP_DIR/secrets/
-   3. PUBLIC_BASE 必须是外网可访问的 https 域名（图生视频要用）
+   2. SMTP_HOST / SMTP_USER / SMTP_PASS → 注册验证码要发信，不配注册走不通
+   3. ALIPAY_APP_ID + 两个密钥文件 → 放到 $APP_DIR/secrets/
+   4. PUBLIC_BASE 必须是外网可访问的 https 域名（图生视频要用）
 
- 支付宝密钥放好后，务必把 .env 里的 ALIPAY_MOCK 改成 0，
- 否则任何人都能点「模拟支付」白拿积分。
+ 本版已关闭全部模拟能力：ALIPAY_MOCK / MAIL_ECHO / PAYMENT_CHANNEL=mock
+ 在生产环境打开任何一个，服务都启动不起来了（guard 会打印要改哪一行），
+ 不会再出现「先开着跑、以后再关」这种白送积分的事故。
 ============================================================
 
 TIP

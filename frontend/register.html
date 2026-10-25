@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>注册 · Viora AI</title>
 <link rel="icon" href="/assets/favicon.png">
-<link rel="stylesheet" href="/assets/css/app.css?v=20261024">
+<link rel="stylesheet" href="/assets/css/app.css?v=20261024b">
 <style>
 .split { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
 .left { display: grid; place-items: center; padding: 40px 24px; background: #fff; }
@@ -45,7 +45,7 @@
   <div class="left">
     <div class="form">
       <h2 class="h2" style="margin-bottom:6px">创建账号</h2>
-      <p class="sub mb24">注册即送 <b style="color:var(--brand-ink)" id="bonusTip">体验积分</b>，够生成两条片子</p>
+      <p class="sub mb24">注册即送 <b style="color:var(--brand-ink)" id="bonusTip">体验积分</b>，够生成两条作品</p>
       <form id="form">
         <div class="field">
           <label class="label">邮箱</label>
@@ -94,7 +94,7 @@
 </div>
 <!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
 <script src="/config.js"></script>
-<script src="/assets/js/core.js?v=20261024"></script>
+<script src="/assets/js/core.js?v=20261024b"></script>
 <script>
 (function () {
   get('/api/auth/me').then(() => { location.href = '/studio'; }).catch(() => {});

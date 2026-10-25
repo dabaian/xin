@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from . import guard
 from .config import CFG
 from .db import init_db
 from .routers import admin, assets, auth, desktop, payment, tasks as task_router, wallet
@@ -27,8 +28,17 @@ logging.basicConfig(
 )
 log = logging.getLogger("studio")
 
-app = FastAPI(title=CFG.app_name + " API", docs_url="/api/docs",
-              openapi_url="/api/openapi.json", redoc_url=None)
+# ---------------------------------------------------------------- 上线闸门
+# 生产环境里只要还有「模拟支付 / 验证码回显」这类开关开着，进程直接退出。
+# 放在创建 app 之前，是为了保证「配置不对 → 起不来」，而不是「起来了但带病运行」。
+guard.check_boot()
+
+# 生产环境不暴露 API 文档和 OpenAPI 描述文件，少给扫描器一点信息。
+_DOCS = None if guard.is_prod() else "/api/docs"
+_OPENAPI = None if guard.is_prod() else "/api/openapi.json"
+
+app = FastAPI(title=CFG.app_name + " API", docs_url=_DOCS,
+              openapi_url=_OPENAPI, redoc_url=None)
 
 # ---------------------------------------------------------------- 中间件
 # 前端与后端分开部署（前端静态站/CDN + 后端这台机器）时，浏览器会发跨域请求。
@@ -49,7 +59,7 @@ if _CORS:
 
 
 @app.middleware("http")
-async def guard(request: Request, call_next):
+async def traffic_guard(request: Request, call_next):
     path = request.url.path
     if path.startswith("/api/") and request.method != "OPTIONS":
         ip = (request.headers.get("x-forwarded-for", "").split(",")[0].strip()
@@ -106,7 +116,7 @@ def runtime_config():
         "app_env": CFG.app_env,
         "version": CFG.desktop_version,
         "time": time.strftime("%Y-%m-%d %H:%M:%S"),
-        "pay": {"active": active, "mock": active == "mock"},
+        "pay": {"active": active, "mock": gateway.mock_enabled()},
         "features": {
             "captcha": bool(CFG.captcha_enabled),
             "email_code_required": bool(CFG.email_code_required),
@@ -185,14 +195,9 @@ def _startup():
     PendingSweeper().start()
     log.info("%s 已启动 · %s:%s · 数据目录 %s", CFG.app_name, CFG.host, CFG.port,
              CFG.data_dir)
+    log.info("运行状态：%s", guard.banner())
+
     if not CFG.muse_key:
         log.warning("MUSE_KEY 未配置，生成任务会失败（请在 .env 填写号池密钥）")
-    from .payments import gateway
-
-    active = gateway.resolve_code()
-    if not active:
-        log.warning("没有任何可用支付通道，充值不可用（配置 ALIPAY_* 或临时开 ALIPAY_MOCK=1）")
-    elif active == "mock":
-        log.warning("当前是【模拟支付】通道，不会真收钱，上线前务必关掉 ALIPAY_MOCK")
-    else:
-        log.info("支付通道：%s", gateway.get(active).name)
+    for w in guard.warnings():
+        log.warning("上线提醒：%s", w)

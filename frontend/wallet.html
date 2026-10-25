@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>钱包充值 · Viora AI</title>
 <link rel="icon" href="/assets/favicon.png">
-<link rel="stylesheet" href="/assets/css/app.css?v=20261024">
+<link rel="stylesheet" href="/assets/css/app.css?v=20261024b">
 <style>
 .wallets { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; align-items: start; }
 @media (max-width: 1000px) { .wallets { grid-template-columns: 1fr; } }
@@ -103,7 +103,7 @@
 <body>
 <!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
 <script src="/config.js"></script>
-<script src="/assets/js/core.js?v=20261024"></script>
+<script src="/assets/js/core.js?v=20261024b"></script>
 <script>
 (async function () {
   const user = await requireUser();
@@ -185,6 +185,7 @@
 
   async function loadPackages() {
     const r = await get('/api/wallet/packages');
+    PAY_OK = !!(r.channel && r.channel.code);
     const box = $('#pkgs');
     if (!r.items.length) {
       box.innerHTML = '<div class="sub">暂未配置套餐，可直接用下方自定义金额充值</div>';
@@ -200,7 +201,8 @@
         <div class="p-price">${p.price_yuan}<small> 元</small></div>
       </button>`).join('');
     box.querySelectorAll('.pkg').forEach((b) => {
-      b.onclick = () => checkout({ package_id: b.dataset.id });
+      b.onclick = () => (PAY_OK ? checkout({ package_id: b.dataset.id })
+                               : toast('充值通道未开通，请联系客服', 'bad'));
     });
     const ch = r.channel || {};
     const brand = $('#payBrand');
@@ -222,6 +224,9 @@
   /* ---------------- 自定义金额 ---------------- */
   const CUSTOM_CHIPS = [50, 100, 200, 500, 1000];
   let customBusy = false, customTimer = null, customLast = null;
+  // 收款通道是否可用：没有商户参数时整个充值区只展示、不引导下单，
+  // 避免用户输完金额点下去才收到 503。
+  let PAY_OK = false;
 
   function initCustom(cfg) {
     const min = Number(cfg.min || 10), max = Number(cfg.max || 20000);
@@ -253,10 +258,26 @@
       if (e.key === 'Enter' && !$('#cPay').disabled) $('#cPay').click();
     });
     $('#cPay').onclick = () => checkout({ custom_yuan: input.value });
+
+    // 通道不可用：把整块输入置灰，别让用户白填一遍
+    if (!PAY_OK) {
+      input.disabled = true;
+      input.placeholder = '充值通道未开通';
+      $('#cChips').querySelectorAll('.chip').forEach((b) => { b.disabled = true; });
+      const btn = $('#cPay');
+      btn.disabled = true;
+      btn.textContent = '通道未开通';
+      $('#cQuote').innerHTML = '<span class="q-left">收款通道未配置，暂时无法充值</span>';
+    }
   }
 
   async function quoteCustom(raw, min, max) {
     const q = $('#cQuote'), btn = $('#cPay');
+    if (!PAY_OK) {
+      q.innerHTML = '<span class="q-left">收款通道未配置，暂时无法充值</span>';
+      btn.disabled = true;
+      return;
+    }
     const v = String(raw || '').trim();
     if (!v) {
       q.innerHTML = '<span class="q-left">输入金额后显示到账积分</span>';
@@ -332,6 +353,7 @@
   let watch = null;
 
   async function checkout(payload) {
+    if (!PAY_OK) return toast('充值通道未开通，请联系客服', 'bad');
     if (customBusy) return;
     customBusy = true;
     busy(true);

@@ -298,20 +298,31 @@ async def notify(request: Request, conn=Depends(db.get_db)):
     return PlainTextResponse("success")
 
 
-@router.post("/mock-pay/{order_no}")
-def mock_pay(order_no: str, user=Depends(current_user), conn=Depends(db.get_db)):
-    """仅模拟通道可用：把订单标记为已支付，用来验收整条充值链路。"""
-    if not CFG.alipay_mock and not (gateway.current() and gateway.current().is_mock()):
-        raise HTTPException(404, "接口不存在")
-    row = conn.execute("SELECT * FROM payment_orders WHERE order_no=? AND user_id=?",
-                       (order_no, user["id"])).fetchone()
-    if not row:
-        raise HTTPException(404, "订单不存在")
-    info = {"trade_status": "TRADE_SUCCESS", "trade_no": "MOCK" + order_no,
-            "total_amount": "%.2f" % (row["amount_minor"] / 100.0),
-            "buyer_id": "mock-user", "notify_id": "mock-" + order_no}
-    _apply_trade(conn, row, info, "mock")
-    return {"ok": True, "status": "PAID", "points": row["points"]}
+# ------------------------------------------------------------------ 模拟到账
+# 只在「非生产环境 + 显式开启模拟」时才注册这条路由。
+# 生产环境它不在路由表里 —— 不是返回 404，是压根没挂上，
+# 所以连「未登录先返回 401」这种情况都不会发生。
+if gateway.mock_enabled():
+
+    @router.post("/mock-pay/{order_no}")
+    def mock_pay(order_no: str, user=Depends(current_user), conn=Depends(db.get_db)):
+        """把订单直接标记为已支付 —— **仅本地验收可用**。
+
+        能走到这里说明启动时就是「非生产 + 模拟开启」，函数内部再判一次，
+        是为了防止运行期有人手改 REGISTRY。
+        """
+        if not gateway.mock_enabled():
+            raise HTTPException(404, "接口不存在")
+        row = conn.execute("SELECT * FROM payment_orders WHERE order_no=? AND user_id=?",
+                           (order_no, user["id"])).fetchone()
+        if not row:
+            raise HTTPException(404, "订单不存在")
+        info = {"trade_status": "TRADE_SUCCESS", "trade_no": "MOCK" + order_no,
+                "total_amount": "%.2f" % (row["amount_minor"] / 100.0),
+                "buyer_id": "mock-user", "notify_id": "mock-" + order_no}
+        _apply_trade(conn, row, info, "mock")
+        log.warning("【模拟到账】订单 %s 被手动标记为已支付（仅本地验收）", order_no)
+        return {"ok": True, "status": "PAID", "points": row["points"]}
 
 
 # ------------------------------------------------------------------ 查询类
@@ -325,13 +336,12 @@ def methods(user=Depends(current_user)):
 @router.get("/channels")
 def channels(user=Depends(current_user)):
     """通道状态总览：给后台排查用，不含任何密钥。"""
-    active = gateway.current()
     return {
         "ok": True,
         "active": gateway.resolve_code(),
         "configured_env": CFG.payment_channel,
         "alipay_ready": CFG.alipay_ready,
-        "mock": bool(active and active.is_mock()),
+        "mock": gateway.mock_enabled(),
         "channels": gateway.available(),
     }
 
@@ -340,7 +350,9 @@ def channels(user=Depends(current_user)):
 def selfcheck(user=Depends(current_user)):
     gw = gateway.current()
     if gw is None:
-        return {"ok": False, "active": "", "error": "没有任何可用的支付通道，请检查 ALIPAY_* 配置"}
+        return {"ok": False, "active": "", "mock": False,
+                "error": "没有任何可用的支付通道，请检查 ALIPAY_* 配置，"
+                         "或设 PAYMENT_CHANNEL=none 明确关闭充值"}
     return {"ok": True, "active": gw.code, "channel": gw.name,
             "info": gw.selfcheck(), "mock": gw.is_mock()}
 

@@ -74,6 +74,10 @@ if [[ -f "$ENVF" ]]; then
   MK="$(getv MUSE_KEY)"
   AI="$(getv ALIPAY_APP_ID)"
   MOCK="$(getv ALIPAY_MOCK)"
+  ECHO="$(getv MAIL_ECHO)"
+  CH="$(getv PAYMENT_CHANNEL)"
+  SMTP="$(getv SMTP_HOST)"
+  ENV="$(getv APP_ENV)"
 
   if [[ "$PB" == https://* ]]; then ok "PUBLIC_BASE = $PB"
   else bad "PUBLIC_BASE = '${PB}' → 必须是外网 https，否则图生视频取不到参考图"; fi
@@ -82,19 +86,33 @@ if [[ -f "$ENVF" ]]; then
   if [[ -n "$MK" ]]; then ok "MUSE_KEY 已填（${#MK} 字符）"; else bad "MUSE_KEY 为空"; fi
 
   if [[ -n "$AI" ]]; then ok "ALIPAY_APP_ID = $AI"
-  else warn "ALIPAY_APP_ID 未填 → 只能模拟支付"; fi
+  else warn "ALIPAY_APP_ID 未填 → 充值通道不可用（不想收钱就写 PAYMENT_CHANNEL=none）"; fi
 
   AP="$(getv ADMIN_PASSWORD)"
   if [[ -z "$AP" ]]; then
-    bad "ADMIN_PASSWORD 为空 → 正在使用内置默认密码，上线前必须改掉"
+    bad "ADMIN_PASSWORD 为空 → 生产环境会拒绝启动，必须设强密码"
   elif [[ ${#AP} -lt 8 ]]; then
     warn "ADMIN_PASSWORD 只有 ${#AP} 位，建议 12 位以上"
   else ok "ADMIN_PASSWORD 已设置（${#AP} 位）"; fi
 
-  if [[ "$MOCK" == "1" ]]; then
-    if [[ -n "$AI" ]]; then bad "ALIPAY_MOCK=1 但已配支付宝 → 上线必须改成 0"
-    else warn "ALIPAY_MOCK=1（模拟支付，未配支付宝时正常）"; fi
-  else ok "ALIPAY_MOCK=0"; fi
+  # 模拟相关：本版在生产环境是硬拦截（backend/app/guard.py）
+  if [[ "$ENV" == "prod" || "$ENV" == "production" || -z "$ENV" ]]; then
+    if [[ "$MOCK" == "1" ]]; then
+      bad "ALIPAY_MOCK=1 → 生产环境会拒绝启动（等于白送积分），改成 0"
+    else ok "ALIPAY_MOCK=0"; fi
+    if [[ "$ECHO" == "1" ]]; then
+      bad "MAIL_ECHO=1 → 生产环境会拒绝启动（等于没验证邮箱），改成 0"
+    else ok "MAIL_ECHO=0"; fi
+    if [[ "$CH" == "mock" ]]; then
+      bad "PAYMENT_CHANNEL=mock → 生产环境会拒绝启动，改成 alipay 或 none"
+    else ok "PAYMENT_CHANNEL=${CH:-自动}"; fi
+  else
+    warn "APP_ENV=$ENV（非生产环境）→ 模拟开关仍可显式开启，上线前记得切 prod"
+  fi
+
+  if [[ -z "$SMTP" ]]; then
+    warn "SMTP_HOST 未填 → 邮箱验证码发不出去，生产环境会拒绝启动（或设 EMAIL_CODE_REQUIRED=0）"
+  else ok "SMTP_HOST = $SMTP"; fi
 
   for k in alipay_private_key.pem alipay_public_key.pem; do
     if [[ -f "$APP_DIR/secrets/$k" ]]; then

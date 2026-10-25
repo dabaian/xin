@@ -69,7 +69,7 @@ def packages(user=Depends(optional_user)):
     adapter = gateway.get(active)
     return {"ok": True, "items": items,
             "alipay_ready": CFG.alipay_ready,
-            "mock": bool(adapter and adapter.is_mock()),
+            "mock": gateway.mock_enabled(),
             "channel": {
                 "code": active,
                 "name": adapter.name if adapter else "",

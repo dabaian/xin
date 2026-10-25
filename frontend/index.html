@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Viora AI · 把一句话变成能发的片子</title>
+<title>Viora AI · 把一句话变成能发的艺术品</title>
 <meta name="description" content="面向短视频与电商的 AI 视频生成工作台：文生视频、图生视频、扫码充值、按条计费。">
 <link rel="icon" href="/assets/favicon.png">
-<link rel="stylesheet" href="/assets/css/app.css?v=20261024">
+<link rel="stylesheet" href="/assets/css/app.css?v=20261024b">
 <style>
 body { background: #fff; }
 .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
@@ -123,9 +123,28 @@ body { background: #fff; }
 
 .foot { padding: 40px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; }
 .foot .in { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+
+/* ---------- 导航：平滑滚动 + 当前位置高亮 + 顶部进度条 ---------- */
+.section[id], section[id] { scroll-margin-top: 80px; }
+
+.nav-links a { position: relative; transition: color .18s ease; }
+.nav-links a::after {
+  content: ''; position: absolute; left: 50%; right: 50%; bottom: -8px; height: 2px;
+  background: var(--brand); border-radius: 2px;
+  transition: left .28s cubic-bezier(.22,.61,.36,1), right .28s cubic-bezier(.22,.61,.36,1);
+}
+.nav-links a:hover::after,
+.nav-links a.on::after { left: 0; right: 0; }
+.nav-links a.on { color: var(--ink); font-weight: 600; }
+
+.scroll-bar { position: fixed; left: 0; right: 0; top: 0; height: 2px; z-index: 60;
+  pointer-events: none; }
+.scroll-bar i { display: block; height: 100%; width: 0; border-radius: 0 2px 2px 0;
+  background: linear-gradient(90deg, var(--brand), #FFB27A); transition: width .1s linear; }
 </style>
 </head>
 <body>
+<div class="scroll-bar" aria-hidden="true"><i id="scrollBar"></i></div>
 <header class="nav">
   <div class="wrap nav-in">
     <a class="row" href="/" style="gap:10px;font-weight:700">
@@ -147,7 +166,7 @@ body { background: #fff; }
   <div class="wrap hero-grid">
     <div>
       <div class="eyebrow">✦ AI 视频生成 · 按条计费</div>
-      <h1>把一句话，<br>变成<em>能发的片子</em>。</h1>
+      <h1>把一句话，<br>变成<em>能发的艺术品</em>。</h1>
       <p class="lead">
         写一段画面描述，或上传一张首帧图，几十秒后拿到一条可直接发布的竖屏视频。
         不用订阅、不用装环境，扫码充值，积分永不过期。
@@ -210,7 +229,7 @@ body { background: #fff; }
       <div class="feat">
         <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="m4.5 17 4.2-4.2a2 2 0 0 1 2.8 0L16 17.5"/></svg></div>
         <h3>成品自动归档</h3>
-        <p>生成过的片子按时间归档，随时回看、下载、删掉不满意的，不占你本地空间。</p>
+        <p>生成过的作品按时间归档，随时回看、下载、删掉不满意的，不占你本地空间。</p>
       </div>
       <div class="feat">
         <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5h11l3 3v12H5z"/><path d="M8.5 9h7M8.5 13h7M8.5 17h4"/></svg></div>
@@ -331,7 +350,7 @@ body { background: #fff; }
 
 <!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
 <script src="/config.js"></script>
-<script src="/assets/js/core.js?v=20261024"></script>
+<script src="/assets/js/core.js?v=20261024b"></script>
 <script>
 (async function () {
   try {
@@ -360,14 +379,92 @@ body { background: #fff; }
     $('#prices').innerHTML = `
       <div class="price"><div class="pn">体验包</div><div class="pp">100<small> 积分</small></div>
         <div class="pd">= 10 条 5 秒视频 / 20 张图</div><div class="py">10.00<small> 元</small></div></div>
-      <div class="price hot"><div class="rtag">最受欢迎</div><div class="pn">基础包</div>
-        <div class="pp">550<small> 积分</small></div><div class="pd">含赠送 50 · ≈ 27 条 10 秒视频</div>
-        <div class="py">50.00<small> 元</small></div></div>
-      <div class="price"><div class="pn">专业包</div><div class="pp">1400<small> 积分</small></div>
-        <div class="pd">含赠送 200 · ≈ 70 条 10 秒视频</div><div class="py">120.00<small> 元</small></div></div>
-      <div class="price"><div class="pn">工作室包</div><div class="pp">3800<small> 积分</small></div>
-        <div class="pd">含赠送 800 · ≈ 190 条 10 秒视频</div><div class="py">300.00<small> 元</small></div></div>`;
+      <div class="price hot"><div class="rtag">满 200 赠 10%</div><div class="pn">标准包</div>
+        <div class="pp">2200<small> 积分</small></div><div class="pd">含赠送 200 · ≈ 220 条 10 秒视频</div>
+        <div class="py">200.00<small> 元</small></div></div>
+      <div class="price"><div class="pn">专业包</div><div class="pp">5750<small> 积分</small></div>
+        <div class="pd">含赠送 750 · ≈ 575 条 10 秒视频</div><div class="py">500.00<small> 元</small></div></div>
+      <div class="price"><div class="pn">工作室包</div><div class="pp">12000<small> 积分</small></div>
+        <div class="pd">含赠送 2000 · ≈ 1200 条 10 秒视频</div><div class="py">1000.00<small> 元</small></div></div>`;
   }
+})();
+</script>
+
+<script>
+/* 导航：锚点平滑滚动 + 当前位置高亮 + 顶部阅读进度 */
+(function () {
+  const nav = document.querySelector('.nav');
+  // 落点 = 导航栏实际高度，滚动后区块顶边正好贴在导航栏下沿
+  const navH = () => (nav ? nav.getBoundingClientRect().height : 64);
+  const links = Array.from(document.querySelectorAll('.nav-links a[href^="#"]'));
+  const targets = links.map((a) => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const bar = document.getElementById('scrollBar');
+  let ticking = false;
+  let raf = 0;
+
+  const easeInOutCubic = (t) => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+  const maxScroll = () => document.documentElement.scrollHeight - window.innerHeight;
+
+  function scrollToSection(el) {
+    const goal = Math.max(0, Math.min(maxScroll(),
+      el.getBoundingClientRect().top + window.scrollY - navH()));
+    const from = window.scrollY;
+    const dist = goal - from;
+    // 有点距离才动画；已经很近就直接落位，避免「点了没反应」的错觉
+    if (Math.abs(dist) < 4) return;
+    // 距离越远给的时间越长，但限制在 380~820ms，快而不飘
+    const dur = Math.min(820, Math.max(380, Math.abs(dist) * 0.5));
+    const t0 = performance.now();
+    cancelAnimationFrame(raf);
+    (function step(now) {
+      const p = Math.min(1, (now - t0) / dur);
+      window.scrollTo({ top: from + dist * easeInOutCubic(p), behavior: 'instant' });
+      if (p < 1) raf = requestAnimationFrame(step);
+    })(t0);
+  }
+
+  // 事件委托：导航栏之外，hero 的「看价格」等 # 链接也走同一套动画
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a[href^="#"]');
+    if (!a) return;
+    const hash = a.getAttribute('href');
+    if (!hash || hash === '#') return;
+    const el = document.querySelector(hash);
+    if (!el) return;
+    e.preventDefault();
+    scrollToSection(el);
+    // 用 replaceState 而不是改 location.hash，否则浏览器会再跳一次，且污染历史
+    history.replaceState(null, '', hash);
+  });
+
+  function paint() {
+    const y = window.scrollY;
+    const max = maxScroll();
+    if (bar) bar.style.width = (max > 0 ? Math.min(100, (y / max) * 100) : 0) + '%';
+
+    const line = y + navH() + 90;
+    let cur = -1;
+    targets.forEach((s, i) => { if (s.offsetTop <= line) cur = i; });
+    links.forEach((a, i) => a.classList.toggle('on', i === cur));
+  }
+
+  window.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => { ticking = false; paint(); });
+  }, { passive: true });
+  window.addEventListener('resize', paint);
+
+  // 带 #xxx 直接打开时，等页面渲染完再对齐位置（浏览器默认会贴顶，被导航挡住）
+  window.addEventListener('load', () => {
+    const hash = location.hash;
+    if (hash && hash !== '#') {
+      const el = document.querySelector(hash);
+      if (el) setTimeout(() => scrollToSection(el), 60);
+    }
+    paint();
+  });
+  paint();
 })();
 </script>
 </body>

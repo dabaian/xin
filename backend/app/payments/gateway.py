@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import logging
 
+from .. import guard
 from ..config import CFG
 from . import alipay
 
@@ -100,18 +101,19 @@ class AlipayAdapter(BaseAdapter):
 
 # ------------------------------------------------------------------ 模拟通道
 class MockAdapter(BaseAdapter):
-    """只用于没有商户参数时把「下单 → 扫码 → 到账 → 扣费」全链路跑通。
+    """本地验收用：把「下单 → 扫码 → 到账 → 扣费」全链路跑通，不真收钱。
 
-    二维码内容是假链接，靠后台的「模拟支付」按钮触发到账。
-    生产环境必须把 ALIPAY_MOCK / PAYMENT_CHANNEL=mock 关掉。
+    二维码内容是假链接，靠「模拟支付」按钮触发到账。
+    只在非生产环境注册；生产环境下这个类压根不会进 REGISTRY，
+    /api/payments/mock-pay 也注册不出来（见文件末尾）。
     """
 
     code = "mock"
     name = "模拟支付"
-    desc = "测试用，不真扣钱，点一下直接到账"
+    desc = "本地验收用，不真扣钱（生产环境不可用）"
 
     def ready(self) -> bool:
-        return True
+        return guard.mock_allowed()
 
     def is_mock(self) -> bool:
         return True
@@ -132,12 +134,23 @@ class MockAdapter(BaseAdapter):
 
 
 # ------------------------------------------------------------------ 注册表
-# 想加新通道：实现一个 BaseAdapter 子类，然后在这里加一行 {"code": 实例}
-REGISTRY: dict[str, BaseAdapter] = {
-    a.code: a for a in (AlipayAdapter(), MockAdapter())
-}
+# 想加新通道：实现一个 BaseAdapter 子类，然后在这里加一行。
+# 模拟通道只在非生产环境注册 —— 生产环境它连路由都挂不上。
+_ADAPTERS: list[BaseAdapter] = [AlipayAdapter()]
+if guard.mock_allowed():
+    _ADAPTERS.append(MockAdapter())
+
+REGISTRY: dict[str, BaseAdapter] = {a.code: a for a in _ADAPTERS}
 
 ORDER_PENDING = ("CREATED", "PENDING")
+
+
+def mock_enabled() -> bool:
+    """模拟能力总开关：非生产环境 + 显式开启（渠道指定或 ALIPAY_MOCK=1）。"""
+    if not guard.mock_allowed() or "mock" not in REGISTRY:
+        return False
+    want = (CFG.payment_channel or "").strip().lower()
+    return want == "mock" or guard.alipay_mock_on()
 
 
 def get(code: str) -> BaseAdapter | None:
@@ -154,6 +167,9 @@ def resolve_code() -> str:
     if want in ("none", "off", "0", "disabled", "close"):
         return ""          # 显式关掉充值
     if want:
+        if want == "mock" and not guard.mock_allowed():
+            log.warning("PAYMENT_CHANNEL=mock 在生产环境被忽略，充值通道不可用")
+            return ""
         adapter = REGISTRY.get(want)
         if adapter is None:
             log.warning("PAYMENT_CHANNEL=%s 没有对应适配器，改为自动选择", want)
@@ -162,9 +178,9 @@ def resolve_code() -> str:
         else:
             log.warning("PAYMENT_CHANNEL=%s 的商户参数不齐，充值通道不可用", want)
             return ""
-    if CFG.alipay_mock:
+    if mock_enabled():
         return "mock"
-    if alipay.ready():
+    if CFG.alipay_ready:
         return "alipay"
     return ""
 

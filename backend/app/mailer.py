@@ -1,8 +1,13 @@
 """SMTP 发信：注册 / 登录验证码。
 
-没配 SMTP 时进入「演示模式」：验证码只写日志，并随接口响应回传给前端，
-方便本地把流程跑通。生产环境（`APP_ENV=prod` 且没显式开 `MAIL_ECHO`）不回传，
-直接报错，避免线上被人套出验证码。
+验证码只有两条路：
+    1. 配了 SMTP        → 真发到邮箱；
+    2. 没配但显式开了 MAIL_ECHO（仅非生产环境） → 回显到页面，本地调试用；
+    3. 其余情况          → 直接报错，绝不静默吞掉。
+
+注意：早期版本有「非生产环境自动回显」的兜底，等于只要 APP_ENV 不是 prod，
+任何人注册都能直接看到验证码。这个口子已经堵掉 —— 现在必须显式写
+`MAIL_ECHO=1`，且生产环境写这个会被启动守卫拦下（见 guard.py）。
 """
 from __future__ import annotations
 
@@ -12,6 +17,7 @@ import ssl
 from email.message import EmailMessage
 from email.utils import formataddr
 
+from . import guard
 from .config import CFG
 
 logger = logging.getLogger("muse.mail")
@@ -35,10 +41,14 @@ def configured() -> bool:
 
 
 def echo_mode() -> bool:
-    """没配 SMTP 时是否允许把验证码回显出来。"""
+    """没配 SMTP 时是否允许把验证码回显出来。
+
+    只认一个条件：显式配置了 MAIL_ECHO=1，并且当前不是生产环境。
+    不再有「非生产环境自动回显」的兜底。
+    """
     if configured():
         return False
-    return bool(CFG.mail_echo) or CFG.app_env != "prod"
+    return guard.mail_echo_on()
 
 
 def send_code(to: str, code: str, purpose: str, minutes: int) -> None:
@@ -82,7 +92,7 @@ font-family:ui-monospace,Menlo,Consolas,monospace">%s</span>
 
     if not configured():
         if echo_mode():
-            logger.warning("[演示模式] 未配置 SMTP，%s 验证码 %s（%d 分钟内有效）",
+            logger.warning("[验证码回显] 未配置 SMTP，%s 的验证码 %s（%d 分钟内有效）",
                            to, code, minutes)
             return
         raise MailError("邮件服务还没配置（SMTP_HOST / SMTP_USER / SMTP_PASS），"
@@ -110,7 +120,24 @@ font-family:ui-monospace,Menlo,Consolas,monospace">%s</span>
                 s.login(CFG.smtp_user, CFG.smtp_pass)
                 s.send_message(msg)
         logger.info("验证码邮件已发送：%s（%s）", to, purpose)
+    except smtplib.SMTPAuthenticationError as exc:
+        logger.warning("SMTP 登录被拒（%s）：%s", exc.smtp_code, exc.smtp_error)
+        raise MailError("邮件服务器拒绝登录，请检查 SMTP_USER / SMTP_PASS 是否为"
+                        "邮箱后台生成的授权码（不是登录密码）") from exc
+    except smtplib.SMTPServerDisconnected as exc:
+        # QQ / 163 在账号或授权码不对时直接断连，不回 535
+        logger.warning("SMTP 连接被断开：%s", exc)
+        raise MailError("邮件服务器断开了连接，通常是 SMTP_PASS 填了登录密码而不是授权码，"
+                        "或邮箱后台没开启 SMTP 服务") from exc
+    except smtplib.SMTPRecipientsRefused as exc:
+        logger.warning("收件人被拒：%s", exc.recipients)
+        raise MailError("收件地址被拒绝，确认邮箱地址是否正确") from exc
+    except ssl.SSLError as exc:
+        logger.warning("SMTP TLS 失败：%s", exc)
+        raise MailError("邮件服务器 TLS 握手失败，检查 SMTP_PORT 与 SMTP_SSL 是否匹配"
+                        "（465 配 SSL=1，587 配 SSL=0 + STARTTLS=1）") from exc
     except (smtplib.SMTPException, OSError) as exc:
+        logger.warning("SMTP 发送失败：%s", exc)
         raise MailError("邮件发送失败：%s" % exc) from exc
 
 

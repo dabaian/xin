@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import logging
+import secrets
 import sqlite3
 import threading
 from datetime import datetime, timedelta, timezone
@@ -399,7 +400,21 @@ def _seed(conn: sqlite3.Connection) -> None:
     from .security import hash_password
 
     if not q1(conn, "SELECT id FROM users WHERE role = 'admin' LIMIT 1"):
-        pwd = _cfg.admin_password or "admin888"
+        from . import guard
+
+        if _cfg.admin_password:
+            pwd = _cfg.admin_password
+        elif guard.is_prod():
+            # 生产环境不给默认口令：随机生成一次，只打在启动日志里，
+            # 登录后请立刻改掉。（正常情况下 guard.check_boot() 已经拦在前面了，
+            # 这里只是防止有人绕过守卫直接初始化数据库。）
+            pwd = secrets.token_urlsafe(12)
+            logging.getLogger("studio").warning(
+                "未配置 ADMIN_PASSWORD，已生成随机管理员密码：%s（请立即登录后台修改）", pwd)
+        else:
+            pwd = "admin888"
+            logging.getLogger("studio").warning(
+                "本地环境，管理员账号 %s 使用内置默认口令，请勿用于生产", _cfg.admin_user)
         conn.execute(
             "INSERT INTO users(email, username, password_hash, role, status, created_at) "
             "VALUES(?,?,?,'admin','active',?)",

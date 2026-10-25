@@ -47,7 +47,11 @@
 }
 
 * { box-sizing: border-box; }
-html, body { height: 100%; }
+/* body 不能写死 height:100% —— 那会把 body 的滚动容器高度钉在视口高度上，
+   页面内容溢出后 position:sticky 的导航栏 / 侧边栏就会跟着滚走。
+   用 min-height 既能撑满首屏，又保留 sticky 的正常行为。 */
+html { height: 100%; }
+body { min-height: 100%; }
 body {
   margin: 0;
   font-family: var(--font);
