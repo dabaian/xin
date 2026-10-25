@@ -5,33 +5,40 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>钱包充值 · Viora AI</title>
 <link rel="icon" href="/assets/favicon.png">
-<link rel="stylesheet" href="/assets/css/app.css?v=20261025">
+<link rel="stylesheet" href="/assets/css/app.css?v=20261028">
 <style>
 .wallets { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; align-items: start; }
 @media (max-width: 1000px) { .wallets { grid-template-columns: 1fr; } }
 
 .balance-card {
   position: relative; overflow: hidden; border-radius: var(--r-lg); padding: 26px 28px;
-  background: linear-gradient(135deg, #171A21, #232833 55%, #2E2118);
-  color: #fff; box-shadow: var(--sh-3);
+  background: linear-gradient(135deg, rgba(91,140,255,.16), rgba(126,87,255,.10) 55%, rgba(46,214,208,.07));
+  border: 1px solid var(--line); color: var(--ink);
+}
+.balance-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: repeating-linear-gradient(90deg, rgba(91, 140, 255,.055) 0 1px, transparent 1px 46px);
+  pointer-events: none;
 }
 .balance-card::after {
-  content: ''; position: absolute; width: 260px; height: 260px; right: -70px; top: -90px;
-  background: radial-gradient(circle, rgba(255,90,31,.55), transparent 62%); filter: blur(6px);
+  content: ''; position: absolute; width: 300px; height: 300px; right: -90px; top: -110px;
+  background: radial-gradient(circle, rgba(91, 140, 255,.22), transparent 62%); filter: blur(4px);
 }
-.balance-card .b-num { font-family: var(--mono); font-size: 46px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; }
-.balance-card .b-sub { color: rgba(255,255,255,.62); font-size: 12.5px; }
+.balance-card .b-num { font-family: var(--mono); font-size: 46px; font-weight: 600; letter-spacing: -.03em;
+  line-height: 1.1; color: #EAF0FB; position: relative; z-index: 1; }
+.balance-card .b-sub { color: rgba(91, 140, 255,.66); font-size: 11.5px; letter-spacing: .14em;
+  font-family: var(--mono); text-transform: uppercase; position: relative; z-index: 1; }
 .b-stats { display: flex; gap: 28px; margin-top: 22px; position: relative; z-index: 1; }
-.b-stats div span { display: block; font-size: 11.5px; color: rgba(255,255,255,.55); margin-bottom: 2px; }
-.b-stats div b { font-family: var(--mono); font-size: 17px; }
+.b-stats div span { display: block; font-size: 11px; color: var(--muted); margin-bottom: 2px; letter-spacing: .06em; }
+.b-stats div b { font-family: var(--mono); font-size: 16px; font-weight: 600; color: var(--ink-2); }
 
 .pkg-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 560px) { .pkg-grid { grid-template-columns: 1fr; } }
 .pkg {
-  position: relative; border: 1.5px solid var(--line); border-radius: var(--r); padding: 18px 16px;
-  background: #fff; cursor: pointer; transition: all .16s; text-align: left;
+  position: relative; border: 1px solid var(--line); border-radius: var(--r); padding: 18px 16px;
+  background: var(--card); cursor: pointer; transition: all .16s; text-align: left;
 }
-.pkg:hover { border-color: var(--brand-line); box-shadow: var(--sh-2); transform: translateY(-2px); }
+.pkg:hover { border-color: var(--brand-line); transform: translateY(-2px); }
 .pkg .p-name { font-size: 13px; color: var(--ink-3); font-weight: 550; }
 .pkg .p-pts { font-family: var(--mono); font-size: 27px; font-weight: 700; letter-spacing: -.02em; margin: 6px 0 0; }
 .pkg .p-pts small { font-family: var(--font); font-size: 12px; font-weight: 500; color: var(--muted); margin-left: 3px; }
@@ -39,33 +46,35 @@
 .pkg .p-price { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line);
   font-family: var(--mono); font-size: 17px; font-weight: 700; }
 .pkg .p-price small { font-family: var(--font); font-size: 11.5px; color: var(--muted); font-weight: 500; }
-.pkg .ribbon { position: absolute; top: -1px; right: 12px; background: var(--brand); color: #fff;
-  font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 0 0 7px 7px; }
+.pkg .ribbon { position: absolute; top: -1px; right: 12px; background: var(--brand); color: var(--on-brand);
+  font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 0 0 2px 2px;
+  letter-spacing: .06em; }
 
 /* 自定义金额 */
-.custom-box { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--line); }
+.custom-box { margin-top: 8px; padding-top: 12px; border-top: 1px dashed var(--line); }
 .amt-row { display: flex; gap: 10px; align-items: center; }
 .amt-field { position: relative; flex: 1 1 auto; }
 .amt-field i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
   font-style: normal; color: var(--muted); font-size: 15px; font-weight: 600; }
 .amt-field input {
   width: 100%; height: 44px; padding: 0 14px 0 32px; box-sizing: border-box;
-  border: 1.5px solid var(--line); border-radius: var(--r); background: #fff;
+  border: 1px solid var(--line); border-radius: var(--r); background: #0E1420;
   font-family: var(--mono); font-size: 17px; font-weight: 600; color: var(--ink);
 }
 .amt-field input::placeholder { font-family: var(--font); font-size: 13.5px; font-weight: 400; color: var(--muted); }
-.amt-field input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft); }
+.amt-field input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(91, 140, 255,.12); }
 .amt-row .btn { flex: 0 0 auto; height: 44px; }
 .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 .chip {
-  border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 5px 13px;
-  font-size: 12.5px; font-weight: 550; color: var(--ink-3); cursor: pointer;
+  border: 1px solid var(--line); background: var(--card); border-radius: 2px; padding: 5px 13px;
+  font-size: 12px; font-weight: 500; color: var(--ink-3); cursor: pointer;
   font-family: var(--mono); transition: all .14s;
 }
 .chip:hover { border-color: var(--brand-line); color: var(--brand-ink); }
-.chip.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.chip.on { background: var(--brand); border-color: var(--brand); color: var(--on-brand); font-weight: 600; }
 .quote {
-  margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: var(--bg-2);
+  margin-top: 12px; padding: 10px 14px; border-radius: var(--r); background: var(--bg-2);
+  border: 1px solid var(--line-2);
   font-size: 13px; min-height: 40px; display: flex; align-items: center;
   justify-content: space-between; gap: 12px; flex-wrap: wrap;
 }
@@ -77,8 +86,8 @@
 /* 二维码 */
 .qr-wrap { text-align: center; padding: 6px 0 0; }
 .qr-box {
-  width: 226px; height: 226px; margin: 0 auto; padding: 12px; border-radius: 16px;
-  background: #fff; border: 1px solid var(--line); box-shadow: var(--sh-2); position: relative;
+  width: 226px; height: 226px; margin: 0 auto; padding: 12px; border-radius: var(--r-sm);
+  background: #fff; border: 1px solid var(--line); position: relative;
 }
 .qr-box img { width: 100%; height: 100%; display: block; border-radius: 8px; image-rendering: pixelated; }
 .qr-box.locked img { filter: blur(3px); opacity: .35; }
@@ -90,11 +99,13 @@
 .alipay-logo { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: #1677FF; font-weight: 600; }
 .alipay-logo i { width: 16px; height: 16px; border-radius: 4px; background: #1677FF; display: grid;
   place-items: center; color: #fff; font-size: 10px; font-style: normal; font-weight: 800; }
-.steps { text-align: left; background: var(--bg-2); border-radius: 12px; padding: 14px 16px; margin-top: 18px; }
+.steps { text-align: left; background: var(--bg-2); border: 1px solid var(--line-2);
+  border-radius: var(--r); padding: 14px 16px; margin-top: 18px; }
 .steps div { display: flex; gap: 9px; font-size: 12.5px; color: var(--ink-3); line-height: 1.9; }
 .steps b { color: var(--ink); }
-.dot-n { width: 17px; height: 17px; border-radius: 50%; background: var(--line); color: var(--ink-3);
-  font-size: 10.5px; display: grid; place-items: center; flex: 0 0 17px; margin-top: 4px; font-weight: 700; }
+.dot-n { width: 17px; height: 17px; border-radius: 50%; background: #172033; color: var(--brand-ink);
+  font-family: var(--mono); font-size: 10px; display: grid; place-items: center; flex: 0 0 17px; margin-top: 4px;
+  font-weight: 600; box-shadow: inset 0 0 0 1px var(--brand-line); }
 .ok-burst { width: 74px; height: 74px; margin: 10px auto 14px; border-radius: 50%; background: var(--ok-soft);
   color: var(--ok); display: grid; place-items: center; font-size: 34px; animation: pop .3s cubic-bezier(.2,.9,.3,1.4); }
 @keyframes pop { from { transform: scale(.6); opacity: 0 } }
@@ -103,7 +114,7 @@
 <body>
 <!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
 <script src="/config.js"></script>
-<script src="/assets/js/core.js?v=20261025"></script>
+<script src="/assets/js/core.js?v=20261028"></script>
 <script>
 (async function () {
   const user = await requireUser();

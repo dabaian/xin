@@ -5,31 +5,32 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>素材库 · Viora AI</title>
 <link rel="icon" href="/assets/favicon.png">
-<link rel="stylesheet" href="/assets/css/app.css?v=20261025">
+<link rel="stylesheet" href="/assets/css/app.css?v=20261028">
 <style>
-.tabs { display: flex; gap: 4px; background: var(--line-2); padding: 3px; border-radius: 10px; }
-.tabs button { border: none; background: transparent; padding: 6px 14px; border-radius: 8px;
-  font-size: 13px; font-weight: 550; color: var(--ink-3); cursor: pointer; }
-.tabs button.on { background: #fff; color: var(--ink); box-shadow: var(--sh-1); }
+.tabs { display: flex; gap: 2px; background: #0E141F; border: 1px solid var(--line-2); padding: 2px; border-radius: var(--r); }
+.tabs button { border: none; background: transparent; padding: 6px 14px; border-radius: var(--r-sm);
+  font-size: 12.5px; font-weight: 500; color: var(--ink-3); cursor: pointer; transition: all .14s; }
+.tabs button:hover { color: var(--ink-2); }
+.tabs button.on { background: #1D2739; color: var(--ink); }
 .lib { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
-.item { background: #fff; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden;
-  transition: box-shadow .16s, transform .16s; }
-.item:hover { box-shadow: var(--sh-2); transform: translateY(-1px); }
-.item .pv { aspect-ratio: 4/3; background: #EEF0F4; cursor: pointer; position: relative; overflow: hidden; }
+.item { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden;
+  transition: border-color .16s, transform .16s; }
+.item:hover { border-color: var(--brand-line); transform: translateY(-2px); }
+.item .pv { aspect-ratio: 4/3; background: #121A29; cursor: pointer; position: relative; overflow: hidden; }
 .item .pv video, .item .pv img { width: 100%; height: 100%; object-fit: cover; }
 .item .bar2 { padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .item .nm { font-size: 12.5px; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item .sz { font-size: 11px; color: var(--muted); }
-.acts { position: absolute; inset: 0; background: rgba(16,19,25,.45); opacity: 0;
+.acts { position: absolute; inset: 0; background: rgba(6, 9, 15,.62); opacity: 0;
   display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity .16s; }
 .item:hover .acts { opacity: 1; }
-.acts .btn { background: rgba(255,255,255,.94); border: none; }
+.acts .btn { background: #172033; border: 1px solid var(--line); }
 </style>
 </head>
 <body>
 <!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
 <script src="/config.js"></script>
-<script src="/assets/js/core.js?v=20261025"></script>
+<script src="/assets/js/core.js?v=20261028"></script>
 <script>
 (async function () {
   const user = await requireUser();

@@ -5,39 +5,46 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>找回密码 · Viora AI</title>
 <link rel="icon" href="/assets/favicon.png">
-<link rel="stylesheet" href="/assets/css/app.css?v=20261026">
+<link rel="stylesheet" href="/assets/css/app.css?v=20261028">
 <style>
 .split { display: grid; grid-template-columns: 1fr 1.05fr; min-height: 100vh; }
-.form-side { display: grid; place-items: center; padding: 40px 24px; background: #fff; }
+.form-side { display: grid; place-items: center; padding: 40px 24px; background: var(--bg); }
 .form-box { width: 100%; max-width: 372px; }
 .side {
-  position: relative; overflow: hidden; padding: 44px; color: #fff;
-  background: linear-gradient(150deg, #14171D 0%, #1C2029 45%, #2A1C13 100%);
+  position: relative; overflow: hidden; padding: 44px; color: var(--ink);
+  background: #080B12;
   display: flex; flex-direction: column; justify-content: space-between;
 }
+/* 一层极细的等距竖线，像调色台上的刻度槽 */
 .side::before {
-  content: ''; position: absolute; inset: -40% -20% auto auto; width: 620px; height: 620px;
-  background: radial-gradient(circle, rgba(255,90,31,.42), transparent 62%);
+  content: ''; position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(90deg, rgba(91, 140, 255,.05) 0 1px, transparent 1px 64px),
+    radial-gradient(circle at 78% 8%, rgba(91, 140, 255,.20), transparent 58%),
+    radial-gradient(circle at 12% 96%, rgba(91, 140, 255,.09), transparent 52%);
 }
+/* 右侧一条黄铜发丝，把两块面板切开 */
 .side::after {
-  content: ''; position: absolute; left: -120px; bottom: -180px; width: 480px; height: 480px;
-  background: radial-gradient(circle, rgba(37,99,235,.28), transparent 64%);
+  content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(91, 140, 255,.34) 22%, rgba(91, 140, 255,.34) 78%, transparent);
 }
 .side > * { position: relative; z-index: 1; }
-.side .logo { display: flex; align-items: center; gap: 11px; font-weight: 700; font-size: 16px; }
-.side .logo .m { width: 34px; height: 34px; border-radius: 10px; object-fit: cover;
-  box-shadow: 0 4px 14px rgba(120,90,255,.45); }
-.side h1 { font-size: 34px; line-height: 1.28; letter-spacing: -.02em; margin: 0 0 14px; font-weight: 700; }
-.side h1 em { font-style: normal; color: #FF8A5B; }
-.side p { color: rgba(255,255,255,.62); font-size: 14px; max-width: 380px; line-height: 1.75; }
-.side .steps { display: grid; gap: 14px; margin-top: 26px; }
-.side .steps div { display: flex; gap: 11px; font-size: 13.5px; color: rgba(255,255,255,.78); }
+.side .logo { display: flex; align-items: center; gap: 11px; font-weight: 600; font-size: 15.5px; }
+.side .logo .m { width: 32px; height: 32px; border-radius: var(--r-sm); object-fit: cover;
+  box-shadow: 0 0 0 1px rgba(91, 140, 255,.24); }
+.side h1 { font-size: clamp(28px, 3vw, 35px); line-height: 1.26; letter-spacing: -.025em;
+  margin: 0 0 14px; font-weight: 600; }
+.side h1 em { font-style: normal; color: var(--brand); }
+.side p { color: var(--ink-3); font-size: 13.5px; max-width: 372px; line-height: 1.8; }
+.side .steps { display: grid; gap: 13px; margin-top: 28px; }
+.side .steps div { display: flex; gap: 11px; font-size: 13px; color: var(--ink-2); }
 .side .steps b {
-  flex: 0 0 20px; width: 20px; height: 20px; border-radius: 50%;
-  background: rgba(255,90,31,.22); color: #FF8A5B; display: grid; place-items: center;
-  font-size: 11px; font-weight: 800; margin-top: 1px;
+  flex: 0 0 19px; width: 19px; height: 19px; border-radius: 50%; background: transparent;
+  color: var(--brand); display: grid; place-items: center; font-family: var(--mono);
+  font-size: 10px; font-weight: 600; margin-top: 2px;
+  box-shadow: inset 0 0 0 1px rgba(91, 140, 255,.4);
 }
-.side .foot { color: rgba(255,255,255,.35); font-size: 12px; }
+.side .foot { color: #5C6675; font-size: 11.5px; letter-spacing: .02em; }
 #mobile { letter-spacing: .04em; }
 #smsCode { letter-spacing: .22em; font-weight: 600; }
 .input-row { display: flex; gap: 10px; align-items: stretch; }
@@ -48,8 +55,8 @@
 .strength { height: 3px; border-radius: 3px; background: var(--line-2); margin-top: 8px; overflow: hidden; }
 .strength i { display: block; height: 100%; width: 0; transition: all .2s; }
 .cap-img {
-  flex: 0 0 auto; width: 126px; height: 44px; border-radius: 9px;
-  border: 1px solid var(--line); background: #F7F8FA; cursor: pointer;
+  flex: 0 0 auto; width: 126px; height: 44px; border-radius: var(--r);
+  border: 1px solid var(--line); background: #0E1420; cursor: pointer;
   object-fit: cover; transition: opacity .15s, border-color .15s;
 }
 .cap-img:hover { border-color: var(--brand-line); }
@@ -58,9 +65,8 @@
 .done-box { text-align: center; padding: 12px 0 4px; }
 .done-ico {
   width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 16px;
-  display: grid; place-items: center; font-size: 26px; color: #fff; font-weight: 800;
-  background: linear-gradient(135deg, #34C77B, #22A863);
-  box-shadow: 0 8px 22px rgba(34,168,99,.28);
+  display: grid; place-items: center; font-size: 24px; color: #06170F; font-weight: 600;
+  background: var(--brand); box-shadow: 0 0 26px rgba(91, 140, 255,.22);
 }
 @media (max-width: 900px) { .split { grid-template-columns: 1fr; } .side { display: none; } }
 </style>
@@ -153,7 +159,7 @@
   </div>
 </div>
 <script src="/config.js"></script>
-<script src="/assets/js/core.js?v=20261026"></script>
+<script src="/assets/js/core.js?v=20261028"></script>
 <script>
 (function () {
   const qs = new URLSearchParams(location.search);

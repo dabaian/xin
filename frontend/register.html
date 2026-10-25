@@ -5,24 +5,29 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>注册 · Viora AI</title>
 <link rel="icon" href="/assets/favicon.png">
-<link rel="stylesheet" href="/assets/css/app.css?v=20261026">
+<link rel="stylesheet" href="/assets/css/app.css?v=20261028">
 <style>
 .split { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
-.left { display: grid; place-items: center; padding: 40px 24px; background: #fff; }
+.left { display: grid; place-items: center; padding: 40px 24px; background: var(--bg); }
 .right {
-  position: relative; overflow: hidden; padding: 44px; color: #fff;
-  background: linear-gradient(150deg, #14171D 0%, #1B2029 50%, #241A13 100%);
+  position: relative; overflow: hidden; padding: 44px; color: var(--ink);
+  background: #080B12;
   display: flex; flex-direction: column; justify-content: center;
 }
-.right::before { content: ''; position: absolute; right: -140px; top: -120px; width: 560px; height: 560px;
-  background: radial-gradient(circle, rgba(255,90,31,.4), transparent 62%); }
+.right::before { content: ''; position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(90deg, rgba(91, 140, 255,.05) 0 1px, transparent 1px 64px),
+    radial-gradient(circle at 82% 4%, rgba(91, 140, 255,.20), transparent 58%); }
+.right::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(91, 140, 255,.34) 22%, rgba(91, 140, 255,.34) 78%, transparent); }
 .right > * { position: relative; z-index: 1; }
-.right h2 { font-size: 30px; line-height: 1.3; letter-spacing: -.02em; margin: 0 0 12px; }
-.right p { color: rgba(255,255,255,.6); font-size: 13.5px; line-height: 1.8; max-width: 360px; }
+.right h2 { font-size: clamp(26px, 2.8vw, 31px); line-height: 1.3; letter-spacing: -.026em;
+  margin: 0 0 12px; font-weight: 600; }
+.right p { color: var(--ink-3); font-size: 13px; line-height: 1.8; max-width: 356px; }
 .bonus {
-  display: inline-flex; align-items: center; gap: 8px; margin-top: 22px;
-  padding: 10px 16px; border-radius: 12px; background: rgba(255,90,31,.14);
-  border: 1px solid rgba(255,90,31,.32); color: #FFB08A; font-weight: 600; font-size: 13px;
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 24px;
+  padding: 9px 15px; border-radius: var(--r); background: var(--brand-soft);
+  border: 1px solid var(--brand-line); color: var(--brand-ink); font-weight: 500; font-size: 12.5px;
 }
 .form { width: 100%; max-width: 384px; }
 .hint { font-size: 11.5px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
@@ -36,8 +41,8 @@
 #mobile { letter-spacing: .04em; }
 #smsCode, #capCode { letter-spacing: .22em; font-weight: 600; text-transform: none; }
 .cap-img {
-  flex: 0 0 auto; width: 126px; height: 44px; border-radius: 9px;
-  border: 1px solid var(--line); background: #F7F8FA; cursor: pointer;
+  flex: 0 0 auto; width: 126px; height: 44px; border-radius: var(--r);
+  border: 1px solid var(--line); background: #0E1420; cursor: pointer;
   object-fit: cover; transition: opacity .15s, border-color .15s;
 }
 .cap-img:hover { border-color: var(--brand-line); }
@@ -52,6 +57,11 @@
       <h2 class="h2" style="margin-bottom:6px">创建账号</h2>
       <p class="sub mb24">手机号注册，注册即送 <b style="color:var(--brand-ink)" id="bonusTip">体验积分</b></p>
       <form id="form" novalidate>
+        <div class="field">
+          <label class="label">昵称 <span class="muted" style="font-weight:400">选填</span></label>
+          <input class="input" id="username" type="text" maxlength="32" placeholder="怎么称呼你">
+        </div>
+
         <div class="field">
           <label class="label">手机号</label>
           <input class="input" id="mobile" type="tel" autocomplete="tel" inputmode="numeric"
@@ -93,11 +103,6 @@
           <div class="hint" id="p2tip"></div>
         </div>
 
-        <div class="field">
-          <label class="label">昵称 <span class="muted" style="font-weight:400">选填</span></label>
-          <input class="input" id="username" type="text" maxlength="32" placeholder="怎么称呼你">
-        </div>
-
         <button class="btn btn-primary btn-lg btn-block mt8" id="submit" type="submit">注册并登录</button>
         <p class="hint center mt12" style="color:var(--muted)">
           注册即表示同意《用户协议》与《隐私政策》
@@ -114,7 +119,7 @@
 </div>
 <!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
 <script src="/config.js"></script>
-<script src="/assets/js/core.js?v=20261026"></script>
+<script src="/assets/js/core.js?v=20261028"></script>
 <script>
 (function () {
   get('/api/auth/me').then(() => { location.href = '/studio'; }).catch(() => {});

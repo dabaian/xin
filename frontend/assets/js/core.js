@@ -321,7 +321,7 @@ function busy(on) {
   if (!bar) {
     bar = document.createElement('div');
     bar.id = 'busybar';
-    bar.style.cssText = 'position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,#FF8A5B,#FF5A1F);z-index:999;transition:width .3s,opacity .3s;width:0';
+    bar.style.cssText = 'position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,#84A9FF,#5B8CFF);z-index:999;transition:width .3s,opacity .3s;width:0';
     document.body.appendChild(bar);
   }
   if (on) { bar.style.opacity = '1'; bar.style.width = '70%'; setTimeout(() => { bar.style.width = '88%'; }, 300); }

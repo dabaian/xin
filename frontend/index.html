@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Viora AI · 写下镜头，收下成片</title>
 <meta name="description" content="输入一段画面描述，几十秒后拿到一条 9:16 竖屏成片。1080p 与 2K，按条计费，不订阅、不绑卡。">
-<meta name="theme-color" content="#14110E">
+<meta name="theme-color" content="#070A12">
 <link rel="icon" href="/assets/favicon.png">
 <script>
 /* 开场动画的前置类；兜底：脚本挂了 2.6 秒后强制显示，绝不让内容卡在隐藏态 */
@@ -17,20 +17,36 @@
 </script>
 <style>
 /* ==========================================================================
-   Viora AI · 落地页
-   一套「调色台」视觉：暖石墨底 + 象牙字 + 黄铜光。
-   页面即时间线：左导轨是进度，播放头随滚动走，底部读 SMPTE 时间码。
+   Viora AI · 落地页「悬浮玻璃」
+   深空靛底 + 半透明玻璃面板 + 大圆角 + 柔光 + 发光按钮
+   空间三层：背景光晕（远）→ 玻璃（中）→ 内容（近）
    ========================================================================== */
 
 :root{
-  --bg:#14110E;
-  --ivory:#F2ECE3;
-  --ivory-2:#B7AEA2;
-  --ivory-3:#7C7469;
-  --brass:#D5AE6C;
-  --brass-2:#B08A45;
-  --line:rgba(242,236,227,.10);
-  --line-2:rgba(242,236,227,.055);
+  --bg:#070A12;
+  --ink:#EAF0FB;
+  --ink-2:#C6D0E2;
+  --ink-3:#93A0B6;
+  --muted:#6E7C93;
+
+  --glass:rgba(255,255,255,.10);
+  --glass-2:rgba(255,255,255,.15);
+  --glass-3:rgba(255,255,255,.20);
+  --gline:rgba(255,255,255,.18);
+  --gline-2:rgba(255,255,255,.28);
+
+  --brand:#5B8CFF;
+  --brand-2:#7FA6FF;
+  --brand-ink:#A9C4FF;
+  --brand-soft:rgba(91,140,255,.12);
+  --brand-line:rgba(91,140,255,.34);
+  --brand-glow:0 0 0 1px rgba(91,140,255,.32),0 8px 28px rgba(91,140,255,.30);
+
+  --r-sm:10px; --r:14px; --r-lg:18px; --r-xl:24px; --pill:999px;
+  --sh-1:0 4px 16px rgba(0,0,0,.26);
+  --sh-2:0 12px 34px rgba(0,0,0,.38);
+  --sh-3:0 30px 80px rgba(0,0,0,.52);
+  --sheen:inset 0 1px 0 rgba(255,255,255,.17);
 
   --rail:88px;
   --gut:clamp(20px,4vw,40px);
@@ -47,46 +63,56 @@
 html{-webkit-text-size-adjust:100%}
 body{
   margin:0;padding-left:var(--rail);
-  background:var(--bg);color:var(--ivory);
+  background:var(--bg);color:var(--ink);
   font-family:var(--font);font-size:15px;line-height:1.72;
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+}
+/* 背景三层光晕：玻璃才有东西可透 */
+body::after{
+  content:'';position:fixed;inset:0;z-index:-2;pointer-events:none;
+  background:
+    radial-gradient(60vw 50vh at 12% -6%,rgba(96,148,255,.34),transparent 62%),
+    radial-gradient(52vw 46vh at 92% 4%,rgba(140,96,255,.22),transparent 64%),
+    radial-gradient(58vw 44vh at 46% 104%,rgba(52,220,214,.15),transparent 62%),
+    linear-gradient(180deg,#080B14,#06080F 60%,#070A12);
 }
 img,video{display:block;max-width:100%}
 a{color:inherit;text-decoration:none}
 button,input{font:inherit;color:inherit}
-::selection{background:rgba(213,174,108,.32);color:#fff}
-:focus-visible{outline:2px solid var(--brass);outline-offset:3px}
+::selection{background:rgba(91,140,255,.32);color:#fff}
+:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
 
 ::-webkit-scrollbar{width:11px}
 ::-webkit-scrollbar-track{background:var(--bg)}
-::-webkit-scrollbar-thumb{background:#2E2823;border:3px solid var(--bg);border-radius:9px}
-::-webkit-scrollbar-thumb:hover{background:#443B33}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border:3px solid var(--bg);border-radius:9px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.2);border:3px solid var(--bg)}
 
 .wrap{max-width:var(--wrap);margin:0 auto;padding:0 var(--gut)}
 
-/* ------------------------------------------------------------------ 胶片颗粒 */
+/* ------------------------------------------------------------------ 颗粒 */
 .grain{
-  position:fixed;inset:0;z-index:80;pointer-events:none;opacity:.032;
+  position:fixed;inset:0;z-index:80;pointer-events:none;opacity:.028;
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
 }
 
 /* ------------------------------------------------------------------ 左导轨（时间线） */
 .rail{position:fixed;left:0;top:0;bottom:0;width:var(--rail);z-index:40;pointer-events:none}
-.rail-track{position:absolute;left:44px;top:132px;bottom:104px;width:1px;background:var(--line)}
+.rail-track{position:absolute;left:44px;top:132px;bottom:104px;width:1px;background:var(--gline)}
 .rail-fill{position:absolute;left:0;top:0;width:1px;height:0;
-  background:linear-gradient(180deg,rgba(213,174,108,.12),var(--brass))}
+  background:linear-gradient(180deg,rgba(91,140,255,.12),var(--brand));
+  box-shadow:0 0 8px rgba(91,140,255,.5)}
 .rail-head{position:absolute;left:0;top:0;width:15px;height:1px;
-  background:var(--brass);transform:translate(-7px,0);box-shadow:0 0 12px rgba(213,174,108,.55)}
+  background:var(--brand);transform:translate(-7px,0);box-shadow:0 0 12px rgba(91,140,255,.55)}
 .rail-head::after{content:'';position:absolute;left:6px;top:-2px;width:5px;height:5px;
-  border-radius:50%;background:var(--brass);box-shadow:0 0 10px rgba(213,174,108,.9)}
+  border-radius:50%;background:var(--brand);box-shadow:0 0 10px rgba(91,140,255,.9)}
 .rail-dot{position:absolute;left:0;width:3px;height:3px;border-radius:50%;
-  background:#4A423A;transform:translate(-1px,-1.5px);transition:background .3s,box-shadow .3s}
-.rail-dot.on{background:var(--brass);box-shadow:0 0 8px rgba(213,174,108,.8)}
+  background:rgba(255,255,255,.18);transform:translate(-1px,-1.5px);transition:background .3s,box-shadow .3s}
+.rail-dot.on{background:var(--brand);box-shadow:0 0 8px rgba(91,140,255,.8)}
 .rail-tc{position:absolute;left:0;right:0;bottom:52px;text-align:center;
-  font-family:var(--mono);font-size:9.5px;letter-spacing:.03em;color:#6A6259;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.03em;color:#5E6875;
   font-variant-numeric:tabular-nums}
 .rail-mark{position:absolute;left:0;right:0;bottom:30px;text-align:center;
-  font-size:8.5px;letter-spacing:.26em;color:#4E463E}
+  font-size:8.5px;letter-spacing:.26em;color:#4E586B}
 @media (max-width:1179px){
   :root{--rail:0px}
   .rail{display:none}
@@ -95,37 +121,41 @@ button,input{font:inherit;color:inherit}
 /* ------------------------------------------------------------------ 导航 */
 .nav{position:sticky;top:0;z-index:50;border-bottom:1px solid transparent;
   transition:background .3s,border-color .3s}
-.nav.stuck{background:rgba(20,17,14,.9);
-  -webkit-backdrop-filter:blur(14px) saturate(140%);backdrop-filter:blur(14px) saturate(140%);
-  border-bottom-color:var(--line)}
+.nav.stuck{background:rgba(7,10,18,.72);
+  -webkit-backdrop-filter:blur(26px) saturate(160%);backdrop-filter:blur(26px) saturate(160%);
+  border-bottom-color:var(--gline)}
 .nav-in{height:78px;display:flex;align-items:center;gap:14px}
 
 .brand{display:flex;align-items:center;gap:11px;margin-right:26px}
-.brand svg{width:22px;height:22px;flex:none;color:var(--brass)}
+.brand img{width:32px;height:32px;flex:none;object-fit:cover;display:block;
+  border-radius:9px;box-shadow:0 0 0 1px rgba(255,255,255,.14),0 4px 14px rgba(0,0,0,.35)}
 .brand span{font-size:16px;font-weight:600;letter-spacing:-.01em}
-.brand span em{font-style:normal;color:var(--ivory-3);font-weight:400;font-size:12px;margin-left:5px;letter-spacing:.04em}
+.brand span em{font-style:normal;color:var(--ink-3);font-weight:400;font-size:12px;margin-left:5px;letter-spacing:.04em}
 
 .nlinks{display:flex;align-items:center;gap:26px}
-.nlinks a{position:relative;font-size:13.5px;color:var(--ivory-2);transition:color .22s;padding:4px 0}
+.nlinks a{position:relative;font-size:13.5px;color:var(--ink-2);transition:color .22s;padding:4px 0}
 .nlinks a::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;
-  background:var(--brass);transform:scaleX(0);transform-origin:left;transition:transform .34s var(--ease)}
-.nlinks a:hover,.nlinks a.on{color:var(--ivory)}
+  background:var(--brand);transform:scaleX(0);transform-origin:left;transition:transform .34s var(--ease)}
+.nlinks a:hover,.nlinks a.on{color:var(--ink)}
 .nlinks a:hover::after,.nlinks a.on::after{transform:scaleX(1)}
 
 .nav-sp{flex:1}
-.tlink{font-size:13.5px;color:var(--ivory-2);padding:6px 2px;position:relative;
+.tlink{font-size:13.5px;color:var(--ink-2);padding:6px 2px;position:relative;
   transition:color .22s;white-space:nowrap}
 .tlink::after{content:'';position:absolute;left:0;right:0;bottom:2px;height:1px;background:currentColor;
   transform:scaleX(0);transform-origin:left;transition:transform .34s var(--ease)}
-.tlink:hover{color:var(--ivory)}
+.tlink:hover{color:var(--ink)}
 .tlink:hover::after{transform:scaleX(1)}
 
-.btn-solid{display:inline-flex;align-items:center;justify-content:center;
-  height:38px;padding:0 18px;border:0;border-radius:4px;cursor:pointer;
-  background:var(--brass);color:#171310;font-size:13.5px;font-weight:600;letter-spacing:.01em;
-  white-space:nowrap;transition:background .24s,transform .24s var(--ease),box-shadow .24s}
-.btn-solid:hover{background:#E2BE7E;transform:translateY(-1px);box-shadow:0 8px 22px rgba(213,174,108,.22)}
+.btn-solid{display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  height:40px;padding:0 20px;border:1px solid rgba(255,255,255,.22);border-radius:var(--pill);cursor:pointer;
+  background:linear-gradient(180deg,#6C97FF,#4C7DF5);color:#fff;font-size:13.5px;font-weight:600;letter-spacing:.01em;
+  white-space:nowrap;box-shadow:var(--brand-glow);
+  transition:background .24s,transform .24s var(--ease),box-shadow .24s}
+.btn-solid:hover{background:linear-gradient(180deg,#82A8FF,#5B8CFF);transform:translateY(-1px);
+  box-shadow:0 0 0 1px rgba(91,140,255,.45),0 12px 38px rgba(91,140,255,.46)}
 .btn-solid:active{transform:translateY(0)}
+.btn-lg{height:48px;padding:0 28px;font-size:14.5px}
 
 @media (max-width:900px){
   .nlinks{display:none}
@@ -134,11 +164,7 @@ button,input{font:inherit;color:inherit}
 }
 
 /* ------------------------------------------------------------------ 首屏 */
-.hero{position:relative;padding:clamp(40px,6vw,84px) 0 clamp(56px,7vw,96px);overflow:hidden}
-.hero::before{content:'';position:absolute;right:-16%;top:-44%;
-  width:min(1000px,95vw);height:min(1000px,95vw);
-  background:radial-gradient(circle at 62% 42%,rgba(213,174,108,.115),rgba(213,174,108,.03) 42%,transparent 66%);
-  pointer-events:none}
+.hero{position:relative;padding:clamp(40px,6vw,84px) 0 clamp(46px,5.4vw,72px);overflow:hidden}
 .hero-in{position:relative;display:grid;gap:clamp(34px,5vw,72px);
   grid-template-columns:minmax(0,1.12fr) minmax(0,.78fr);align-items:center}
 @media (max-width:960px){.hero-in{grid-template-columns:1fr;gap:44px}}
@@ -151,292 +177,261 @@ button,input{font:inherit;color:inherit}
 html.js:not(.ready) .hh .ln i{transform:translateY(112%)}
 
 .lead{margin:clamp(20px,2.4vw,28px) 0 0;max-width:33em;
-  font-size:clamp(14.5px,1.15vw,16.5px);line-height:1.92;color:var(--ivory-2);
+  font-size:clamp(14.5px,1.15vw,16.5px);line-height:1.92;color:var(--ink-2);
   transition:opacity .9s var(--ease) .34s,transform .9s var(--ease) .34s}
 html.js:not(.ready) .lead{opacity:0;transform:translateY(10px)}
 
-/* 提示词输入条 —— 它本身就是产品，所以放在首屏正中 */
+/* 提示词输入条 —— 玻璃长条 + 发光按钮 */
 .pbar{position:relative;margin-top:clamp(26px,3vw,36px);
-  display:flex;align-items:center;gap:10px;height:58px;padding:0 8px 0 20px;border-radius:5px;
-  background:rgba(242,236,227,.035);border:1px solid rgba(242,236,227,.14);
+  display:flex;align-items:center;gap:10px;height:62px;padding:0 8px 0 22px;border-radius:var(--pill);
+  background:var(--glass);border:1px solid var(--gline);
+  -webkit-backdrop-filter:blur(30px) saturate(165%);backdrop-filter:blur(30px) saturate(165%);
+  box-shadow:var(--sh-2),var(--sheen);
   transition:border-color .3s,background .3s,box-shadow .3s,opacity .9s var(--ease) .46s,transform .9s var(--ease) .46s}
-.pbar:focus-within{border-color:rgba(213,174,108,.55);background:rgba(242,236,227,.05);
-  box-shadow:0 0 0 4px rgba(213,174,108,.07)}
+.pbar:focus-within{border-color:var(--brand-line);background:rgba(91,140,255,.07);
+  box-shadow:var(--sh-2),var(--sheen),0 0 0 4px rgba(91,140,255,.10)}
 html.js:not(.ready) .pbar{opacity:0;transform:translateY(12px)}
 .pbar input{flex:1;min-width:0;height:100%;border:0;background:transparent;outline:none;
-  font-size:15px;color:var(--ivory);position:relative;z-index:2}
-/* 输入框不用原生 placeholder：它和下面这层逐字动画会叠成重影 */
-.pbar .ph,.pbar .hint{position:absolute;left:20px;top:0;height:58px;display:flex;align-items:center;
+  font-size:15px;color:var(--ink);position:relative;z-index:2}
+.pbar .ph,.pbar .hint{position:absolute;left:22px;top:0;height:62px;display:flex;align-items:center;
   pointer-events:none;font-size:15px;overflow:hidden;white-space:nowrap;z-index:1}
-.pbar .ph{right:96px;color:#7A7268}
+.pbar .ph{right:110px;color:#6E7C93}
 .pbar .ph b{font-weight:400}
 .pbar .ph .caret{display:inline-block;width:1px;height:17px;margin-left:2px;
-  background:var(--brass);animation:blink 1.05s steps(1) infinite}
+  background:var(--brand);animation:blink 1.05s steps(1) infinite}
 @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
-.pbar .hint{color:#5E5750;display:none}
+.pbar .hint{color:#4E586B;display:none}
 .pbar:focus-within .ph{display:none}
 .pbar:focus-within .hint{display:flex}
 .pbar.has-val .hint{display:none}
+.pbar .btn-solid{height:46px;border-radius:var(--pill)}
 
 .facts{margin:clamp(22px,2.6vw,30px) 0 0;padding:0;list-style:none;
   display:flex;flex-wrap:wrap;align-items:center;
   transition:opacity .9s var(--ease) .56s}
 html.js:not(.ready) .facts{opacity:0}
-.facts li{font-size:12.5px;color:var(--ivory-3);letter-spacing:.02em;
-  padding:2px 16px;border-left:1px solid var(--line-2);white-space:nowrap}
+.facts li{font-size:12.5px;color:var(--ink-3);letter-spacing:.02em;
+  padding:2px 16px;border-left:1px solid var(--gline);white-space:nowrap}
 .facts li:first-child{padding-left:0;border-left:0}
-.facts li b{font-weight:500;color:var(--ivory-2);font-variant-numeric:tabular-nums}
+.facts li b{font-weight:500;color:var(--ink-2);font-variant-numeric:tabular-nums}
 
-/* 首屏那一帧：真实生成的片子 */
-.hero-frame{justify-self:end;width:100%;max-width:352px}
-.fm{position:relative;aspect-ratio:9/16;overflow:hidden;background:#0D0B09;
-  border:1px solid rgba(242,236,227,.09)}
-.fm video{width:100%;height:100%;object-fit:cover;
-  transition:filter 1.2s var(--ease),transform 1.7s var(--ease)}
-html.js .fm video{filter:blur(22px) brightness(.42) saturate(.45);transform:scale(1.07)}
-html.js .fm.lit video{filter:none;transform:scale(1)}
-.fm::after{content:'';position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(180deg,rgba(10,8,6,.45) 0%,transparent 24%,transparent 76%,rgba(10,8,6,.5) 100%)}
-.cm{position:absolute;width:15px;height:15px;z-index:3;opacity:.55}
-.cm::before,.cm::after{content:'';position:absolute;background:var(--brass)}
-.cm::before{width:100%;height:1px}
-.cm::after{width:1px;height:100%}
-.cm.a{left:9px;top:9px}
-.cm.b{right:9px;top:9px}
-.cm.b::before{right:0}.cm.b::after{right:0}
-.cm.c{left:9px;bottom:9px}
-.cm.c::before{bottom:0}.cm.c::after{bottom:0}
-.cm.d{right:9px;bottom:9px}
-.cm.d::before{right:0;bottom:0}.cm.d::after{right:0;bottom:0}
+/* 右侧：大尺寸堆叠卡，一张一张切换；每张卡按作品原始比例定尺寸，所以不会被裁 */
+.hero-copy{position:relative;z-index:2}
+.hero-frame{justify-self:end;width:100%;max-width:560px;z-index:1}
+.stack{position:relative;height:clamp(420px,46vw,600px);perspective:1400px;
+  transition:opacity .9s var(--ease) .5s,transform .9s var(--ease) .5s}
+html.js:not(.ready) .stack{opacity:0;transform:translateY(16px)}
 
-.fm-hud{position:absolute;left:12px;top:12px;right:12px;z-index:3;display:flex;justify-content:space-between;
-  font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;color:rgba(242,236,227,.75)}
-.fm-prog{position:absolute;left:0;right:0;bottom:0;height:1px;z-index:3;
-  background:rgba(242,236,227,.12);transition:opacity .5s ease}
-.fm-prog i{display:block;height:100%;width:0;background:var(--brass)}
-.fm-prog em{position:absolute;right:10px;bottom:8px;font-style:normal;
-  font-family:var(--mono);font-size:9.5px;color:var(--brass);letter-spacing:.04em}
-.fm.done .fm-prog{opacity:0}
-.fm-cap{margin:13px 0 0;font-size:12px;line-height:1.6;color:var(--ivory-3);
-  border-left:1px solid var(--line);padding-left:11px;transition:opacity .9s var(--ease) .8s}
-html.js:not(.ready) .fm-cap{opacity:0}
+.snap{
+  position:absolute;left:50%;top:50%;
+  width:calc(var(--w,1) * 100%);aspect-ratio:var(--ar,1.778);
+  margin:0;padding:0;overflow:hidden;cursor:zoom-in;
+  background:#0A0F1C;border:1px solid var(--gline);border-radius:var(--r-xl);
+  box-shadow:var(--sh-3);
+  transition:transform .62s var(--ease),opacity .5s ease,box-shadow .5s ease,border-color .5s;
+  will-change:transform,opacity;
+}
+.snap img,.snap video{width:100%;height:100%;object-fit:cover;display:block}
+.snap::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),inset 0 0 0 1px rgba(255,255,255,.06)}
+.snap .nm{position:absolute;left:14px;bottom:14px;z-index:3;
+  padding:6px 14px;border-radius:var(--pill);font-size:12.5px;color:var(--ink);
+  background:rgba(9,13,24,.58);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  border:1px solid var(--gline);white-space:nowrap;opacity:1;transition:opacity .4s}
+.snap .ar{position:absolute;right:14px;top:14px;z-index:3;font-family:var(--mono);font-size:10px;
+  letter-spacing:.1em;color:var(--ink-2);padding:4px 9px;border-radius:var(--pill);
+  background:rgba(9,13,24,.5);border:1px solid var(--gline)}
+
+/* 叠落切换：当前一张在最前，后面两张错开露出，其余退场 */
+.snap[data-off="-1"]{transform:translate(-50%,-50%) translateX(-30%) scale(.8) rotate(-2deg);
+  opacity:0;z-index:10;pointer-events:none}
+.snap[data-off="0"]{transform:translate(-50%,-50%) translateY(-6%) scale(1);
+  opacity:1;z-index:60;border-color:rgba(91,140,255,.55);
+  box-shadow:var(--sh-3),0 0 60px rgba(96,148,255,.34)}
+.snap[data-off="1"]{transform:translate(-50%,-50%) translateX(11%) translateY(2.5%) scale(.92) rotate(1.4deg);
+  opacity:.62;z-index:40;pointer-events:none}
+.snap[data-off="2"]{transform:translate(-50%,-50%) translateX(21%) translateY(5%) scale(.84) rotate(2.6deg);
+  opacity:.3;z-index:15;pointer-events:none}
+.snap[data-off="far"]{opacity:0;z-index:5;pointer-events:none;
+  transform:translate(-50%,-50%) translateX(27%) translateY(7%) scale(.78) rotate(3.4deg)}
+.snap[data-off="0"]:hover{filter:brightness(1.05)}
+
+.stack-ctl{position:absolute;left:0;right:0;bottom:-6px;z-index:40;
+  display:flex;align-items:center;gap:12px;justify-content:center}
+.stack-btn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;cursor:pointer;
+  color:var(--ink);background:var(--glass-2);border:1px solid var(--gline-2);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);transition:background .2s,transform .2s}
+.stack-btn:hover{background:var(--glass-3);transform:translateY(-1px)}
+.stack-btn svg{width:15px;height:15px;fill:currentColor}
+.stack-num{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;color:var(--ink-2);
+  font-variant-numeric:tabular-nums}
+.stack-dots{display:flex;gap:6px}
+.stack-dots i{width:16px;height:3px;border-radius:2px;background:rgba(255,255,255,.18);
+  transition:background .3s,width .3s}
+.stack-dots i.on{background:var(--brand);width:26px;box-shadow:0 0 10px rgba(91,140,255,.7)}
+
+@media (max-width:960px){
+  .hero-frame{max-width:none}
+  .stack{height:clamp(300px,52vw,420px)}
+  .snap{border-radius:var(--r-lg)}
+}
 
 /* ------------------------------------------------------------------ 通用区块 */
-.sec{padding:clamp(64px,8.4vw,124px) 0;border-top:1px solid var(--line-2)}
-/* 直接带 # 打开时，落点别被吸顶导航盖住 */
+.sec{padding:clamp(64px,8.4vw,124px) 0;border-top:1px solid rgba(255,255,255,.10)}
 .sec[id]{scroll-margin-top:86px}
 .sec-head{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
   gap:clamp(20px,4vw,56px);align-items:end;margin-bottom:clamp(34px,4.4vw,54px)}
 @media (max-width:820px){.sec-head{grid-template-columns:1fr;align-items:start}}
 .sec-head h2{margin:0;font-size:clamp(28px,3.7vw,44px);line-height:1.2;
   letter-spacing:-.032em;font-weight:600}
-.sec-head p{margin:0;font-size:14.5px;line-height:1.85;color:var(--ivory-2);max-width:36em}
-.sec-head p b{font-weight:500;color:var(--ivory)}
+.sec-head p{margin:0;font-size:14.5px;line-height:1.85;color:var(--ink-2);max-width:36em}
+.sec-head p b{font-weight:500;color:var(--ink)}
 
-/* 小节分隔：左侧标签 + 数量 + 发丝线填满 */
 .sub{display:flex;align-items:center;gap:14px;margin:clamp(40px,5vw,64px) 0 clamp(16px,2vw,24px)}
 .sub:first-of-type{margin-top:0}
-.sub .t{font-size:13px;color:var(--ivory-2);letter-spacing:.04em;white-space:nowrap}
-.sub .c{font-family:var(--mono);font-size:11px;color:var(--brass-2);
+.sub .t{font-size:13px;color:var(--ink-2);letter-spacing:.04em;white-space:nowrap}
+.sub .c{font-family:var(--mono);font-size:11px;color:var(--brand-ink);
   font-variant-numeric:tabular-nums;letter-spacing:.06em;white-space:nowrap}
-.sub .l{flex:1;height:1px;background:var(--line)}
-.sub .h{font-size:11.5px;color:var(--ivory-3);white-space:nowrap}
+.sub .l{flex:1;height:1px;background:var(--gline)}
+.sub .h{font-size:11.5px;color:var(--ink-3);white-space:nowrap}
 
 /* ------------------------------------------------------------------ 作品：等高行（宽度按原始比例分配） */
 .jrow{display:flex;gap:clamp(8px,1.2vw,16px);align-items:flex-start}
 .jrow + .jrow{margin-top:clamp(8px,1.2vw,16px)}
 .jitem{flex-grow:var(--r);flex-shrink:1;flex-basis:0;min-width:0;margin:0}
 
-.frame{position:relative;aspect-ratio:var(--r);overflow:hidden;background:#0D0B09;
-  border:1px solid rgba(242,236,227,.07);cursor:zoom-in;padding:0;width:100%;display:block}
+.frame{position:relative;aspect-ratio:var(--r);overflow:hidden;background:#0A0F1C;
+  border:1px solid var(--gline);border-radius:var(--r);cursor:zoom-in;padding:0;width:100%;display:block;
+  transition:box-shadow .4s var(--ease),border-color .4s}
 .frame img,.frame video{width:100%;height:100%;object-fit:cover;
   transition:transform 1s var(--ease),filter .5s ease}
 .frame:hover img,.frame:hover video{transform:scale(1.028)}
 .frame::after{content:'';position:absolute;inset:0;pointer-events:none;
-  opacity:0;transition:opacity .45s;box-shadow:inset 0 0 0 1px rgba(213,174,108,.42)}
+  opacity:0;transition:opacity .45s;box-shadow:inset 0 0 0 1px rgba(91,140,255,.45)}
 .frame:hover::after{opacity:1}
+.frame:hover{box-shadow:0 16px 44px rgba(0,0,0,.42)}
 
-.fc{padding:11px 2px 0;border-top:1px solid var(--line-2);margin-top:10px;transition:border-color .4s}
-.jitem:hover .fc{border-top-color:rgba(213,174,108,.4)}
-.fc .r1{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
-.fc .t{font-size:12.5px;font-weight:500;color:var(--ivory);white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis}
-.fc .k{font-size:10.5px;color:var(--brass-2);white-space:nowrap;letter-spacing:.03em}
-.fc .q{margin:5px 0 0;font-size:11.5px;line-height:1.58;color:var(--ivory-3);
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-
-@media (max-width:760px){
-  .jrow{display:block}
-  .jrow + .jrow{margin-top:14px}
-  .jitem{width:100%;margin-bottom:20px}
-  .jitem:last-child{margin-bottom:0}
-  .fc .q{-webkit-line-clamp:3}
-}
-
-/* 视频播放提示 */
-.vplay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;
-  width:44px;height:44px;border-radius:50%;display:grid;place-items:center;
-  background:rgba(20,17,14,.42);border:1px solid rgba(242,236,227,.4);
-  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
-  transition:opacity .35s,transform .35s var(--ease)}
-.vplay svg{width:14px;height:14px;margin-left:2px;fill:#fff}
-.jitem:hover .vplay{transform:translate(-50%,-50%) scale(1.06)}
+.vplay{position:absolute;right:12px;bottom:12px;z-index:3;width:38px;height:38px;border-radius:50%;
+  display:grid;place-items:center;color:#fff;
+  background:rgba(9,13,24,.55);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+  border:1px solid var(--gline-2);opacity:.92;transition:opacity .3s,background .3s}
+.vplay svg{width:15px;height:15px;fill:currentColor;margin-left:2px}
 .jitem.playing .vplay{opacity:0}
 
-/* ------------------------------------------------------------------ 能力：竖排清单 */
-.cap-grid{display:grid;grid-template-columns:minmax(0,.86fr) minmax(0,1.14fr);gap:clamp(28px,5vw,72px)}
-@media (max-width:900px){.cap-grid{grid-template-columns:1fr;gap:34px}}
-.cap-left{position:sticky;top:112px;align-self:start}
-@media (max-width:900px){.cap-left{position:static}}
-.cap-left h2{margin:0;font-size:clamp(28px,3.7vw,44px);line-height:1.2;
-  letter-spacing:-.032em;font-weight:600}
-.cap-left p{margin:18px 0 0;font-size:14.5px;line-height:1.85;color:var(--ivory-2);max-width:26em}
+.fc{padding:11px 2px 0;border-top:1px solid rgba(255,255,255,.06);margin-top:10px;transition:border-color .4s}
+.fc .r1{display:flex;align-items:baseline;gap:10px}
+.fc .t{font-size:13px;font-weight:550;color:var(--ink)}
+.fc .k{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.06em}
+.fc .q{margin:4px 0 0;font-size:12px;line-height:1.7;color:var(--ink-3);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 
-.cap-list{border-top:1px solid var(--line)}
-.cap-row{position:relative;display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);
-  gap:clamp(14px,2.4vw,34px);padding:clamp(18px,2.1vw,25px) 0;
-  border-bottom:1px solid var(--line-2);transition:background .4s}
-@media (max-width:620px){.cap-row{grid-template-columns:1fr;gap:7px}}
-.cap-row::before{content:'';position:absolute;left:-1px;top:0;bottom:0;width:1px;
-  background:var(--brass);transform:scaleY(0);transform-origin:top;transition:transform .5s var(--ease)}
-.cap-row:hover::before{transform:scaleY(1)}
-.cap-row h3{margin:0;font-size:16.5px;font-weight:500;color:var(--ivory);
-  transition:transform .5s var(--ease),color .3s}
-.cap-row:hover h3{transform:translateX(12px)}
-.cap-row p{margin:0;font-size:13.5px;line-height:1.82;color:var(--ivory-3)}
-.cap-row:hover p{color:var(--ivory-2)}
+/* ------------------------------------------------------------------ 能力 */
+.cap-grid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);
+  gap:clamp(30px,5vw,72px);align-items:start}
+@media (max-width:900px){.cap-grid{grid-template-columns:1fr}}
+.cap-left h2{margin:0 0 16px;font-size:clamp(28px,3.6vw,42px);line-height:1.22;letter-spacing:-.03em;font-weight:600}
+.cap-left p{margin:0;color:var(--ink-2);max-width:30em;line-height:1.9}
+.cap-list{display:grid;gap:10px}
+.cap-row{padding:18px 20px;border-radius:var(--r-lg);
+  background:var(--glass);border:1px solid var(--gline);
+  -webkit-backdrop-filter:blur(24px) saturate(155%);backdrop-filter:blur(24px) saturate(155%);
+  box-shadow:var(--sh-1),var(--sheen);
+  transition:transform .3s var(--ease),border-color .3s,background .3s}
+.cap-row:hover{transform:translateY(-3px);border-color:var(--gline-2);background:var(--glass-2)}
+.cap-row h3{margin:0 0 5px;font-size:15px;font-weight:600}
+.cap-row p{margin:0;font-size:13px;line-height:1.75;color:var(--ink-3)}
 
 /* ------------------------------------------------------------------ 三步 */
-.steps{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:clamp(20px,3.4vw,52px)}
-@media (max-width:820px){.steps{grid-template-columns:1fr;gap:0}}
-.step{position:relative;padding-top:30px}
-.step::before{content:'';position:absolute;left:0;right:0;top:0;height:1px;background:var(--line)}
-.step::after{content:'';position:absolute;left:0;top:-3px;width:7px;height:7px;border-radius:50%;
-  background:var(--brass);box-shadow:0 0 0 4px var(--bg),0 0 16px rgba(213,174,108,.55)}
-@media (max-width:820px){
-  .step{padding:26px 0 26px 24px}
-  .step:first-child{padding-top:0}
-  .step::before{left:0;right:auto;top:0;bottom:0;width:1px;height:auto}
-  .step::after{left:-3px;top:32px}
-  .step:first-child::after{top:3px}
-}
-.step .tc{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--brass-2);
-  font-variant-numeric:tabular-nums}
-.step h3{margin:10px 0 8px;font-size:19px;font-weight:500;letter-spacing:-.012em}
-.step p{margin:0;font-size:13.5px;line-height:1.85;color:var(--ivory-3);max-width:26em}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:820px){.steps{grid-template-columns:1fr}}
+.step{position:relative;padding:24px 22px;border-radius:var(--r-lg);
+  background:var(--glass);border:1px solid var(--gline);
+  -webkit-backdrop-filter:blur(24px) saturate(155%);backdrop-filter:blur(24px) saturate(155%);
+  box-shadow:var(--sh-1),var(--sheen)}
+.step .tc{position:absolute;top:20px;right:20px;font-family:var(--mono);font-size:10.5px;
+  color:var(--brand-ink);letter-spacing:.06em}
+.step h3{margin:0 0 8px;font-size:16px;font-weight:600}
+.step p{margin:0;font-size:13px;line-height:1.78;color:var(--ink-3)}
 
-/* ------------------------------------------------------------------ 价目表 */
-.rates{border-top:1px solid var(--line)}
-.rate-head,.rate{display:grid;grid-template-columns:1.5fr .9fr 1.1fr .7fr;
-  gap:16px;align-items:center;padding:0 clamp(0px,1vw,10px)}
-@media (max-width:760px){
-  .rate-head,.rate{grid-template-columns:1.4fr .9fr auto;gap:10px}
-  .rate-head span:nth-child(3),.rate .c3{display:none}
-}
-.rate-head{height:44px;font-size:11.5px;letter-spacing:.04em;color:var(--ivory-3);
-  border-bottom:1px solid var(--line-2)}
-.rate-head span:last-child,.rate .c4{text-align:right}
-.rate{position:relative;height:clamp(62px,6.4vw,74px);
-  border-bottom:1px solid var(--line-2);transition:background .34s}
-.rate::before{content:'';position:absolute;left:0;top:0;bottom:0;width:1px;background:var(--brass);
-  transform:scaleY(0);transform-origin:center;transition:transform .45s var(--ease)}
-.rate:hover{background:rgba(242,236,227,.022)}
-.rate:hover::before{transform:scaleY(1)}
-.rate .c1{display:flex;align-items:center;gap:10px;min-width:0}
-.rate .nm{font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rate .flag{flex:none;font-size:10.5px;letter-spacing:.05em;color:var(--brass);
-  border:1px solid rgba(213,174,108,.32);border-radius:2px;padding:1px 6px;line-height:1.5}
-.rate .c2{font-family:var(--mono);font-size:15px;color:var(--ivory);
-  font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.rate .c2 small{font-family:var(--font);font-size:11px;color:var(--ivory-3);margin-left:3px}
-.rate .c3{font-size:12.5px;color:var(--ivory-3);font-variant-numeric:tabular-nums}
-.rate .c4{font-family:var(--mono);font-size:19px;font-weight:600;color:var(--ivory);
-  font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-.rate .c4 small{font-family:var(--font);font-size:11px;font-weight:400;color:var(--ivory-3);margin-left:3px}
-.rate-note{margin:22px 0 0;font-size:12.5px;line-height:1.8;color:var(--ivory-3);
-  display:flex;flex-wrap:wrap;gap:8px 26px}
-.rate-note span{display:flex;align-items:center;gap:8px}
-.rate-note span::before{content:'';width:5px;height:1px;background:var(--brass-2);flex:none}
+/* ------------------------------------------------------------------ 价目 */
+.rates{border-radius:var(--r-xl);overflow:hidden;
+  background:var(--glass);border:1px solid var(--gline);
+  -webkit-backdrop-filter:blur(30px) saturate(165%);backdrop-filter:blur(30px) saturate(165%);
+  box-shadow:var(--sh-2),var(--sheen)}
+.rate-head,.rate{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,.9fr) minmax(0,.7fr);
+  gap:12px;align-items:center;padding:15px 22px}
+.rate-head{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--muted);border-bottom:1px solid var(--gline)}
+.rate{border-bottom:1px solid rgba(255,255,255,.10);transition:background .2s}
+.rate:last-child{border-bottom:0}
+.rate:hover{background:rgba(255,255,255,.05)}
+.rate .nm{font-size:14px;font-weight:550}
+.rate .flag{margin-left:10px;font-size:10.5px;color:var(--brand-ink);
+  padding:2px 9px;border-radius:var(--pill);background:var(--brand-soft);border:1px solid var(--brand-line)}
+.rate .c2,.rate .c4{font-family:var(--mono);font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.rate .c2 small,.rate .c4 small{font-family:var(--font);font-size:11px;font-weight:400;color:var(--ink-3);margin-left:4px}
+.rate .c3{font-size:12.5px;color:var(--ink-3)}
+.rate-note{display:flex;gap:22px;flex-wrap:wrap;margin:18px 4px 0;padding:0;list-style:none}
+.rate-note span{font-size:12px;color:var(--ink-3);display:flex;align-items:center;gap:7px}
+.rate-note span::before{content:'';width:4px;height:4px;border-radius:50%;background:var(--brand);
+  box-shadow:0 0 6px rgba(91,140,255,.7)}
 
 /* ------------------------------------------------------------------ 收尾 */
-.end{padding:clamp(64px,8vw,116px) 0 clamp(44px,5vw,64px);border-top:1px solid var(--line-2);
-  position:relative;overflow:hidden}
-.end::before{content:'';position:absolute;left:50%;top:0;transform:translate(-50%,-52%);
-  width:min(900px,90vw);height:min(900px,90vw);
-  background:radial-gradient(circle,rgba(213,174,108,.1),transparent 62%);pointer-events:none}
-.end-in{position:relative}
-.end h2{margin:0;font-size:clamp(30px,4.6vw,58px);line-height:1.16;letter-spacing:-.036em;
-  font-weight:600;max-width:15em}
-.end p{margin:20px 0 0;font-size:15px;line-height:1.85;color:var(--ivory-2);max-width:30em}
-.end-cta{display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin-top:clamp(28px,3.4vw,40px)}
-.btn-lg{height:48px;padding:0 26px;font-size:14.5px;border-radius:5px}
+.end{padding:clamp(70px,9vw,130px) 0;text-align:center;
+  background:radial-gradient(50vw 40vh at 50% 120%,rgba(91,140,255,.14),transparent 66%)}
+.end h2{margin:0 0 14px;font-size:clamp(30px,4.4vw,52px);line-height:1.18;letter-spacing:-.034em;font-weight:600}
+.end p{margin:0 auto;max-width:34em;color:var(--ink-2)}
+.end-cta{margin-top:32px;display:flex;gap:18px;align-items:center;justify-content:center;flex-wrap:wrap}
 
-.foot{border-top:1px solid var(--line-2);padding:30px 0 38px}
-.foot-in{display:flex;flex-wrap:wrap;align-items:center;gap:16px 34px;font-size:12.5px;color:var(--ivory-3)}
+.foot{border-top:1px solid var(--gline);padding:26px 0 34px}
+.foot-in{display:flex;align-items:center;gap:20px;font-size:12.5px;color:var(--muted)}
 .foot-in .sp{flex:1}
-.foot-in a{color:var(--ivory-3);transition:color .22s}
-.foot-in a:hover{color:var(--ivory)}
-.foot-in .cc{color:#5A534B}
+.foot-in a{color:var(--ink-3);transition:color .2s}
+.foot-in a:hover{color:var(--ink)}
+.foot .cc{font-size:11.5px}
 
-/* ------------------------------------------------------------------ 大图查看 */
-.lb{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;
-  padding:clamp(20px,4vw,56px);
-  background:rgba(12,10,8,.9);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
-  opacity:0;transition:opacity .28s ease}
-.lb[hidden]{display:none}
+/* ------------------------------------------------------------------ 大图 / 视频层 */
+.lb{position:fixed;inset:0;z-index:120;display:grid;place-items:center;padding:4vh 4vw;
+  background:rgba(4,6,12,.72);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  opacity:0;transition:opacity .26s ease}
 .lb.in{opacity:1}
-.lb-box{max-width:min(1080px,100%);max-height:100%;display:flex;flex-direction:column;
-  gap:16px;transform:scale(.985);transition:transform .34s var(--ease)}
-.lb.in .lb-box{transform:scale(1)}
-.lb-media{min-height:0;display:flex;justify-content:center}
-.lb-media img,.lb-media video{max-width:100%;max-height:min(74vh,760px);
-  width:auto;height:auto;object-fit:contain;border:1px solid rgba(242,236,227,.1);background:#0D0B09}
-.lb-cap{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;max-width:820px}
-.lb-cap .lb-k{font-family:var(--mono);font-size:10px;color:var(--brass);letter-spacing:.08em;
-  padding-top:3px;white-space:nowrap}
-.lb-cap .lb-cn{margin:0;font-size:14px;line-height:1.75;color:var(--ivory)}
-.lb-cap .lb-en{margin:0;font-size:11.5px;line-height:1.7;color:var(--ivory-3);grid-column:2}
-.lb-x{position:absolute;right:clamp(16px,3vw,34px);top:clamp(16px,3vw,30px);
-  width:40px;height:40px;border-radius:50%;border:1px solid rgba(242,236,227,.24);
-  background:rgba(20,17,14,.5);color:var(--ivory);cursor:pointer;display:grid;place-items:center;
-  transition:border-color .25s,background .25s}
-.lb-x:hover{border-color:rgba(242,236,227,.55);background:rgba(20,17,14,.8)}
-.lb-x svg{width:15px;height:15px}
-
-/* ------------------------------------------------------------------ 减少动效 */
-@media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}
-  html.js .fm video,html.js .fm.lit video{filter:none;transform:none}
-  html.js:not(.ready) .hh .ln i,html.js:not(.ready) .lead,
-  html.js:not(.ready) .pbar,html.js:not(.ready) .facts,html.js:not(.ready) .fm-cap{
-    opacity:1;transform:none}
-}
+.lb[hidden]{display:none}
+.lb-x{position:fixed;top:22px;right:24px;z-index:5;width:44px;height:44px;border-radius:50%;
+  display:grid;place-items:center;color:var(--ink);cursor:pointer;
+  background:var(--glass-2);border:1px solid var(--gline-2);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);transition:background .2s}
+.lb-x:hover{background:var(--glass-3)}
+.lb-x svg{width:18px;height:18px}
+.lb-box{width:min(920px,100%);max-height:100%;display:flex;flex-direction:column;gap:0;
+  border-radius:var(--r-xl);overflow:hidden;
+  background:rgba(14,19,32,.78);border:1px solid var(--gline-2);
+  -webkit-backdrop-filter:blur(28px) saturate(160%);backdrop-filter:blur(28px) saturate(160%);
+  box-shadow:var(--sh-3),var(--sheen)}
+.lb-media{background:#05070D;display:grid;place-items:center;min-height:0}
+.lb-media img,.lb-media video{max-width:100%;max-height:64vh;display:block}
+.lb-cap{padding:16px 22px 20px;border-top:1px solid var(--gline);overflow:auto}
+.lb-k{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase}
+.lb-cn{margin:7px 0 4px;font-size:13.5px;line-height:1.75;color:var(--ink)}
+.lb-en{margin:0;font-size:12px;line-height:1.7;color:var(--ink-3)}
 </style>
 </head>
 <body>
-
 <div class="grain" aria-hidden="true"></div>
 
 <aside class="rail" aria-hidden="true">
-  <div class="rail-track" id="railTrack">
-    <div class="rail-fill" id="railFill"></div>
-    <span class="rail-head" id="railHead"></span>
-  </div>
+  <div class="rail-track" id="railTrack"><i class="rail-fill" id="railFill"></i></div>
+  <i class="rail-head" id="railHead"></i>
   <div class="rail-tc" id="railTc">00:00:00</div>
-  <div class="rail-mark">reel 01</div>
+  <div class="rail-mark">VIORA</div>
 </aside>
 
 <header class="nav" id="nav">
   <div class="wrap nav-in">
-    <a class="brand" href="/" aria-label="Viora AI 首页">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-        <path d="M3.5 3.5h10.5v6.5M3.5 20.5h10.5V14M20.5 3.5H17v6.5M20.5 20.5H17V14"/>
-        <circle cx="17" cy="12" r="1.35" fill="currentColor" stroke="none"/>
-      </svg>
-      <span>Viora<em>AI</em></span>
+    <a class="brand" href="/">
+      <img src="/assets/logo-mark.png" alt="Viora AI 标志">
+      <span>Viora AI<em>AI VIDEO</em></span>
     </a>
-    <nav class="nlinks" aria-label="主导航">
+    <nav class="nlinks" aria-label="页面导航">
       <a href="#works">作品</a>
       <a href="#craft">能力</a>
       <a href="#how">用法</a>
@@ -479,16 +474,93 @@ html.js:not(.ready) .fm-cap{opacity:0}
     </div>
 
     <div class="hero-frame">
-      <div class="fm" id="fm">
-        <span class="cm a"></span><span class="cm b"></span>
-        <span class="cm c"></span><span class="cm d"></span>
-        <div class="fm-hud"><span>9:16</span><span>00:10</span></div>
-        <video id="heroVid" src="/assets/showcase/series/v01.mp4"
-               poster="/assets/showcase/series/p01.webp"
-               muted loop playsinline preload="auto" aria-label="一条由一句话生成的竖屏短片"></video>
-        <div class="fm-prog"><i id="fmBar"></i><em id="fmPct">0%</em></div>
+      <div class="stack" id="stack" aria-label="作品轮播">
+        <button class="snap" style="--ar:1.778;--w:.82" type="button" data-type="video" data-src="/assets/showcase/series/v08.mp4"
+                data-cn="绿紫色极光在繁星夜空下舞动，雪山环绕，完美倒映在平静湖面，湖畔一间亮着暖光的小木屋，极光如波浪般真实流动"
+                data-en="Green and purple auroras dancing under a starry sky, ringed by snowy mountains and mirrored in a calm lake, a warm-lit cabin on the shore, the aurora flowing like real waves"
+                aria-label="查看：极光之夜">
+          <video class="vfilm" src="/assets/showcase/series/v08.mp4" poster="/assets/showcase/series/v08.jpg"
+                 muted loop playsinline preload="none"></video>
+          <span class="nm">极光之夜</span><span class="ar">16:9</span>
+        </button>
+        <button class="snap" style="--ar:1.778;--w:.82" type="button" data-type="video" data-src="/assets/showcase/series/v09.mp4"
+                data-cn="翡翠色巨浪卷成完美桶形，超级慢镜头，金色阳光穿透半透明浪壁，浪尖水花飞溅，水体细节晶莹剔透"
+                data-en="An emerald wave curling into a perfect barrel in super slow motion, golden sunlight shining through the translucent wall of water, spray bursting from the crest, crystal-clear water detail"
+                aria-label="查看：巨浪桶卷">
+          <video class="vfilm" src="/assets/showcase/series/v09.mp4" poster="/assets/showcase/series/v09.jpg"
+                 muted loop playsinline preload="none"></video>
+          <span class="nm">巨浪桶卷</span><span class="ar">16:9</span>
+        </button>
+        <button class="snap" style="--ar:1.778;--w:.82" type="button" data-type="video" data-src="/assets/showcase/series/v10.mp4"
+                data-cn="马群在日落时分的金色草原上奔腾，慢镜头，鬃毛飞扬，尘土在逆光中发光，低角度跟拍与马群并行，力量与自由感"
+                data-en="Horses galloping across a golden steppe at sunset in slow motion, manes flying, dust glowing in backlight, low-angle tracking shot alongside the herd, power and freedom"
+                aria-label="查看：万马奔腾">
+          <video class="vfilm" src="/assets/showcase/series/v10.mp4" poster="/assets/showcase/series/v10.jpg"
+                 muted loop playsinline preload="none"></video>
+          <span class="nm">万马奔腾</span><span class="ar">16:9</span>
+        </button>
+        <button class="snap" style="--ar:1.778;--w:.82" type="button" data-type="video" data-src="/assets/showcase/series/v06.mp4"
+                data-cn="FPV无人机日出时分贴着云海高速飞行，俯冲穿过锯齿状山峰，金色阳光穿透云层，雾气从镜头两侧掠过，电影级航拍"
+                data-en="FPV drone flying fast over a sea of clouds at sunrise, diving through jagged peaks, golden sunlight piercing the clouds, mist sweeping past the lens, cinematic aerial"
+                aria-label="查看：云海穿越">
+          <video class="vfilm" src="/assets/showcase/series/v06.mp4" poster="/assets/showcase/series/v06.jpg"
+                 muted loop playsinline preload="none"></video>
+          <span class="nm">云海穿越</span><span class="ar">16:9</span>
+        </button>
+        <button class="snap" style="--ar:1.778;--w:.82" type="button" data-type="video" data-src="/assets/showcase/series/v07.mp4"
+                data-cn="上海陆家嘴天际线昼夜延时摄影，隔黄浦江对望，云层飞速流过，白天过渡到蓝调时刻，东方明珠与摩天楼群亮起霓虹，车流化作光轨"
+                data-en="Day-to-night timelapse of the Shanghai Lujiazui skyline across the Huangpu River, clouds racing overhead, daylight fading into blue hour, neon lights igniting the towers, traffic turning into light trails"
+                aria-label="查看：上海昼夜">
+          <video class="vfilm" src="/assets/showcase/series/v07.mp4" poster="/assets/showcase/series/v07.jpg"
+                 muted loop playsinline preload="none"></video>
+          <span class="nm">上海昼夜</span><span class="ar">16:9</span>
+        </button>
+        <button class="snap" style="--ar:1.333;--w:.74" type="button" data-type="image" data-src="/assets/showcase/series/p02.webp"
+                data-cn="写实极简风景，清晨雾气弥漫的湖面，远处一叶小木舟，层叠的远山在雾中若隐若现，灰蓝色调，天空与水面大量留白，横版构图"
+                data-en="Photorealistic minimalist landscape at dawn, a calm misty lake with one tiny wooden boat far away, layered soft mountain silhouettes fading into fog, pale grey-blue palette, vast negative space of sky and water, horizontal composition"
+                aria-label="查看：雾湖孤舟">
+          <img src="/assets/showcase/series/p02.webp" alt="雾湖孤舟" loading="lazy">
+          <span class="nm">雾湖孤舟</span><span class="ar">4:3</span>
+        </button>
+        <button class="snap" style="--ar:1.333;--w:.74" type="button" data-type="image" data-src="/assets/showcase/series/p03.webp"
+                data-cn="写实极简建筑摄影，一面弧形白色混凝土建筑立在清澈的浅蓝天空下，墙角一棵小绿树，线条干净，天空大量留白，明亮日光，横版构图"
+                data-en="Photorealistic minimalist architecture photo, a smooth curved white concrete building against a clear pale blue sky, one small green tree at its base, strong clean lines and large areas of empty sky, bright daylight, horizontal composition"
+                aria-label="查看：白墙与蓝天">
+          <img src="/assets/showcase/series/p03.webp" alt="白墙与蓝天" loading="lazy">
+          <span class="nm">白墙与蓝天</span><span class="ar">4:3</span>
+        </button>
+        <button class="snap" style="--ar:1.5;--w:.78" type="button" data-type="image" data-src="/assets/showcase/series/p04.webp"
+                data-cn="写实极简产品摄影，一只琥珀色玻璃精华瓶立在浅色石台上，米色纯色墙面，墙上投下柔和的树叶影子，温暖日光，大量留白，横版构图"
+                data-en="Photorealistic minimalist product photo, a single amber glass skincare bottle standing on a light stone pedestal against a plain beige wall, soft leaf shadows cast on the wall, warm daylight, lots of negative space, horizontal composition"
+                aria-label="查看：琥珀瓶">
+          <img src="/assets/showcase/series/p04.webp" alt="琥珀瓶" loading="lazy">
+          <span class="nm">琥珀瓶</span><span class="ar">3:2</span>
+        </button>
+        <button class="snap" style="--ar:1.728;--w:.80" type="button" data-type="image" data-src="/assets/showcase/series/p07.webp"
+                data-cn="写实极简室内摄影，明亮的客厅一角，米色布艺沙发，原木小边几上放着插了一枝绿枝的花瓶，白墙，大窗柔光，干净不杂乱"
+                data-en="Photorealistic minimalist interior photo of a bright living room corner, beige fabric sofa, small round wooden side table with a vase holding a single branch, white walls, soft daylight through a large window"
+                aria-label="查看：安静的角落">
+          <img src="/assets/showcase/series/p07.webp" alt="安静的角落" loading="lazy">
+          <span class="nm">安静的角落</span><span class="ar">16:10</span>
+        </button>
+        <button class="snap" style="--ar:1.481;--w:.76" type="button" data-type="image" data-src="/assets/showcase/series/p05.webp"
+                data-cn="写实极简美食摄影，俯拍，一杯黑咖啡和一只可颂放在白色小碟上，浅色木桌，柔和的清晨窗光，大量留白"
+                data-en="Photorealistic minimalist food photo from above, one cup of black coffee and a single croissant on a small white plate, plain light wooden table, soft morning window light, lots of empty space"
+                aria-label="查看：晨光早餐">
+          <img src="/assets/showcase/series/p05.webp" alt="晨光早餐" loading="lazy">
+          <span class="nm">晨光早餐</span><span class="ar">3:2</span>
+        </button>
+        <div class="stack-ctl">
+          <button class="stack-btn" id="stPrev" type="button" aria-label="上一张">
+            <svg viewBox="0 0 24 24"><path d="M15.5 4.5 8 12l7.5 7.5-1.8 1.8L4.4 12l9.3-9.3z"/></svg>
+          </button>
+          <span class="stack-num" id="stNum">01 / 10</span>
+          <div class="stack-dots" id="stDots" aria-hidden="true"></div>
+          <button class="stack-btn" id="stNext" type="button" aria-label="下一张">
+            <svg viewBox="0 0 24 24"><path d="M8.5 4.5 16 12l-7.5 7.5 1.8 1.8L19.6 12l-9.3-9.3z"/></svg>
+          </button>
+        </div>
       </div>
-      <p class="fm-cap">年轻东亚女性，素颜，奶油色毛衣，坐在明亮窗边，轻轻眨眼，发丝微动</p>
     </div>
   </div>
 </section>
@@ -632,7 +704,7 @@ html.js:not(.ready) .fm-cap{opacity:0}
     </div>
 
     <div class="sub">
-      <span class="t">动态</span><span class="c">05</span>
+      <span class="t">动态</span><span class="c">10</span>
       <span class="l"></span><span class="h">每条 10 秒　悬停即播　点击看大图</span>
     </div>
 
@@ -655,8 +727,8 @@ html.js:not(.ready) .fm-cap{opacity:0}
 
       <figure class="jitem" style="--r:1.778">
         <button class="frame" type="button" data-type="video" data-src="/assets/showcase/series/v02.mp4"
-                data-cn="清晨雾湖，层叠远山隐入雾中，远处一叶小舟，雾气缓缓流动，水面泛起几乎察觉不到的涟漪"
-                data-en="Misty lake at dawn, layered distant mountains fading into fog, a tiny boat far away, fog drifting slowly, barely perceptible ripples on the water"
+                data-cn="清晨雾湖，层叠远山隐入雾中，一条空渔船静静泊在水面，雾气缓缓流动，水面泛起几乎察觉不到的涟漪，镜头缓缓拉远"
+                data-en="Misty lake at dawn, layered distant mountains fading into fog, an empty fishing boat resting still on the water, fog drifting slowly, barely perceptible ripples, camera pulling back gently"
                 aria-label="播放：雾湖清晨">
           <video class="vfilm" src="/assets/showcase/series/v02.mp4" poster="/assets/showcase/series/p02.webp"
                  muted loop playsinline preload="none"></video>
@@ -664,7 +736,7 @@ html.js:not(.ready) .fm-cap{opacity:0}
         </button>
         <figcaption class="fc">
           <div class="r1"><span class="t">雾湖清晨</span><span class="k">16:9 / 10s</span></div>
-          <p class="q">清晨雾湖，层叠远山隐入雾中，远处一叶小舟，雾气缓缓流动，水面微起涟漪</p>
+          <p class="q">清晨雾湖，层叠远山隐入雾中，空渔船静泊水面，雾气缓缓流动，镜头缓缓拉远</p>
         </figcaption>
       </figure>
 
@@ -684,7 +756,7 @@ html.js:not(.ready) .fm-cap{opacity:0}
       </figure>
     </div>
 
-    <!-- 视频行 2：16:9 + 16:9 -->
+    <!-- 视频行 2：16:9 × 3 -->
     <div class="jrow">
       <figure class="jitem" style="--r:1.778">
         <button class="frame" type="button" data-type="video" data-src="/assets/showcase/series/v04.mp4"
@@ -713,6 +785,84 @@ html.js:not(.ready) .fm-cap{opacity:0}
         <figcaption class="fc">
           <div class="r1"><span class="t">窗台橘猫</span><span class="k">16:9 / 10s</span></div>
           <p class="q">橘猫坐在白色窗台上望向窗外，尾巴尖缓缓摆动，耳朵偶尔轻颤，窗帘被微风轻拂</p>
+        </figcaption>
+      </figure>
+
+      <figure class="jitem" style="--r:1.778">
+        <button class="frame" type="button" data-type="video" data-src="/assets/showcase/series/v06.mp4"
+                data-cn="FPV无人机日出时分贴着云海高速飞行，俯冲穿过锯齿状山峰，金色阳光穿透云层，雾气从镜头两侧掠过，电影级航拍"
+                data-en="FPV drone flying fast over a sea of clouds at sunrise, diving through jagged peaks, golden sunlight piercing the clouds, mist sweeping past the lens, cinematic aerial"
+                aria-label="播放：云海穿越">
+          <video class="vfilm" src="/assets/showcase/series/v06.mp4" poster="/assets/showcase/series/v06.jpg"
+                 muted loop playsinline preload="none"></video>
+          <span class="vplay" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z"/></svg></span>
+        </button>
+        <figcaption class="fc">
+          <div class="r1"><span class="t">云海穿越</span><span class="k">16:9 / 10s</span></div>
+          <p class="q">FPV 无人机贴着云海高速飞行，俯冲穿过锯齿状山峰，金色阳光穿透云层</p>
+        </figcaption>
+      </figure>
+    </div>
+
+    <!-- 视频行 3：16:9 × 4 -->
+    <div class="jrow">
+      <figure class="jitem" style="--r:1.778">
+        <button class="frame" type="button" data-type="video" data-src="/assets/showcase/series/v07.mp4"
+                data-cn="上海陆家嘴天际线昼夜延时摄影，隔黄浦江对望，云层飞速流过，白天过渡到蓝调时刻，东方明珠与摩天楼群亮起霓虹，车流化作光轨"
+                data-en="Day-to-night timelapse of the Shanghai Lujiazui skyline across the Huangpu River, clouds racing overhead, daylight fading into blue hour, neon lights igniting the towers, traffic turning into light trails"
+                aria-label="播放：上海昼夜">
+          <video class="vfilm" src="/assets/showcase/series/v07.mp4" poster="/assets/showcase/series/v07.jpg"
+                 muted loop playsinline preload="none"></video>
+          <span class="vplay" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z"/></svg></span>
+        </button>
+        <figcaption class="fc">
+          <div class="r1"><span class="t">上海昼夜</span><span class="k">16:9 / 10s</span></div>
+          <p class="q">陆家嘴天际线昼夜延时，白天过渡到蓝调时刻，霓虹亮起，车流化作光轨</p>
+        </figcaption>
+      </figure>
+
+      <figure class="jitem" style="--r:1.778">
+        <button class="frame" type="button" data-type="video" data-src="/assets/showcase/series/v08.mp4"
+                data-cn="绿紫色极光在繁星夜空下舞动，雪山环绕，完美倒映在平静湖面，湖畔一间亮着暖光的小木屋，极光如波浪般真实流动"
+                data-en="Green and purple auroras dancing under a starry sky, ringed by snowy mountains and mirrored in a calm lake, a warm-lit cabin on the shore, the aurora flowing like real waves"
+                aria-label="播放：极光之夜">
+          <video class="vfilm" src="/assets/showcase/series/v08.mp4" poster="/assets/showcase/series/v08.jpg"
+                 muted loop playsinline preload="none"></video>
+          <span class="vplay" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z"/></svg></span>
+        </button>
+        <figcaption class="fc">
+          <div class="r1"><span class="t">极光之夜</span><span class="k">16:9 / 10s</span></div>
+          <p class="q">绿紫色极光在繁星夜空下舞动，雪山环绕，完美倒映在平静湖面，湖畔小木屋亮着暖光</p>
+        </figcaption>
+      </figure>
+
+      <figure class="jitem" style="--r:1.778">
+        <button class="frame" type="button" data-type="video" data-src="/assets/showcase/series/v09.mp4"
+                data-cn="翡翠色巨浪卷成完美桶形，超级慢镜头，金色阳光穿透半透明浪壁，浪尖水花飞溅，水体细节晶莹剔透"
+                data-en="An emerald wave curling into a perfect barrel in super slow motion, golden sunlight shining through the translucent wall of water, spray bursting from the crest, crystal-clear water detail"
+                aria-label="播放：巨浪桶卷">
+          <video class="vfilm" src="/assets/showcase/series/v09.mp4" poster="/assets/showcase/series/v09.jpg"
+                 muted loop playsinline preload="none"></video>
+          <span class="vplay" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z"/></svg></span>
+        </button>
+        <figcaption class="fc">
+          <div class="r1"><span class="t">巨浪桶卷</span><span class="k">16:9 / 10s</span></div>
+          <p class="q">翡翠色巨浪卷成完美桶形，超级慢镜头，金色阳光穿透半透明浪壁</p>
+        </figcaption>
+      </figure>
+
+      <figure class="jitem" style="--r:1.778">
+        <button class="frame" type="button" data-type="video" data-src="/assets/showcase/series/v10.mp4"
+                data-cn="马群在日落时分的金色草原上奔腾，慢镜头，鬃毛飞扬，尘土在逆光中发光，低角度跟拍与马群并行，力量与自由感"
+                data-en="Horses galloping across a golden steppe at sunset in slow motion, manes flying, dust glowing in backlight, low-angle tracking shot alongside the herd, power and freedom"
+                aria-label="播放：万马奔腾">
+          <video class="vfilm" src="/assets/showcase/series/v10.mp4" poster="/assets/showcase/series/v10.jpg"
+                 muted loop playsinline preload="none"></video>
+          <span class="vplay" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z"/></svg></span>
+        </button>
+        <figcaption class="fc">
+          <div class="r1"><span class="t">万马奔腾</span><span class="k">16:9 / 10s</span></div>
+          <p class="q">马群在日落时分的金色草原上奔腾，慢镜头，鬃毛飞扬，尘土在逆光中发光</p>
         </figcaption>
       </figure>
     </div>
@@ -850,7 +1000,7 @@ html.js:not(.ready) .fm-cap{opacity:0}
 </div>
 
 <script src="/config.js"></script>
-<script src="/assets/js/core.js?v=20261025"></script>
+<script src="/assets/js/core.js?v=20261028"></script>
 <script>
 (function () {
   'use strict';
@@ -871,44 +1021,13 @@ html.js:not(.ready) .fm-cap{opacity:0}
     } catch (e) { /* 未登录，保持默认 */ }
   })();
 
-  /* ---------------------------------------------------------------- 开场：一次完整的「渲染」 */
-  var heroVid = $('#heroVid');
+  /* ---------------------------------------------------------------- 开场：首屏元素依次浮现 */
   function boot() {
-    var fm = $('#fm'), bar = $('#fmBar'), pct = $('#fmPct');
-    var play = function () {
-      if (!heroVid) return;
-      var p = heroVid.play();
-      if (p && p.catch) p.catch(function () { /* 自动播放被拦，保留首帧 */ });
-    };
-
-    if (reduce) {
-      if (fm) { fm.classList.add('lit', 'done'); }
-      root.classList.add('ready');
-      typePrompt(true);
-      play();
-      return;
-    }
-
     root.classList.add('ready');
-
-    var t0 = performance.now(), DUR = 900;
-    (function tick(now) {
-      var p = Math.min(1, (now - t0) / DUR);
-      var e = 1 - Math.pow(1 - p, 3);
-      if (bar) bar.style.width = (e * 100).toFixed(1) + '%';
-      if (pct) pct.textContent = Math.round(e * 100) + '%';
-      if (p < 1) requestAnimationFrame(tick);
-      else {
-        if (fm) fm.classList.add('lit');
-        play();
-        setTimeout(function () { if (fm) fm.classList.add('done'); }, 460);
-      }
-    })(t0);
-
-    setTimeout(typePrompt, 1180);
+    setTimeout(typePrompt, reduce ? 0 : 620);
   }
 
-  /* 提示词逐字打出来：这是产品本身的样子，比两个按钮更能说明问题 */
+  /* 提示词逐字打出来 */
   var typingTimer = null;
   function typePrompt(instant) {
     var el = $('#phText');
@@ -943,8 +1062,64 @@ html.js:not(.ready) .fm-cap{opacity:0}
     });
   }
 
-  /* ---------------------------------------------------------------- 视频：悬停预览 */
+  /* ---------------------------------------------------------------- 堆叠卡：一张一张切换 */
   var canHover = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+  var stack = $('#stack');
+  if (stack) {
+    var snaps = Array.prototype.slice.call(stack.querySelectorAll('.snap'));
+    var dots = $('#stDots'), num = $('#stNum');
+    var cur = 0, timer = null, AUTO = 4600;
+
+    snaps.forEach(function (s, i) {
+      var d = document.createElement('i');
+      dots.appendChild(d);
+    });
+    var dotEls = Array.prototype.slice.call(dots.children);
+
+    function paint() {
+      var n = snaps.length;
+      snaps.forEach(function (s, i) {
+        /* 相对当前位置循环取 -2..n-3，超出 2 的退到 far */
+        var off = ((i - cur + 2 + n) % n) - 2;
+        s.setAttribute('data-off', off <= 2 ? String(off) : 'far');
+      });
+      dotEls.forEach(function (d, i) { d.classList.toggle('on', i === cur); });
+      num.textContent = String(cur + 1).padStart(2, '0') + ' / ' + String(snaps.length).padStart(2, '0');
+      /* 只有当前卡的片子会播放，其余暂停省流量 */
+      snaps.forEach(function (s, i) {
+        var v = s.querySelector('.vfilm');
+        if (!v) return;
+        if (i === cur && canHover) {
+          v.preload = 'auto';
+          var p = v.play();
+          if (p && p.catch) p.catch(function () {});
+        } else {
+          v.pause();
+        }
+      });
+    }
+    function go(n) { cur = (n + snaps.length) % snaps.length; paint(); }
+    function next() { go(cur + 1); }
+    function prev() { go(cur - 1); }
+    function stop() { if (timer) { clearInterval(timer); timer = null; } }
+    function auto() { stop(); if (!reduce) timer = setInterval(next, AUTO); }
+
+    $('#stNext').addEventListener('click', function () { next(); auto(); });
+    $('#stPrev').addEventListener('click', function () { prev(); auto(); });
+    stack.addEventListener('mouseenter', stop);
+    stack.addEventListener('mouseleave', auto);
+    /* 点非当前卡把它切到前面；点当前卡进大图 */
+    snaps.forEach(function (s, i) {
+      s.addEventListener('click', function (e) {
+        if (i !== cur) { e.preventDefault(); e.stopPropagation(); go(i); auto(); }
+      });
+    });
+
+    paint();
+    auto();
+  }
+
+  /* ---------------------------------------------------------------- 作品区：悬停预览 */
   if (canHover) {
     document.querySelectorAll('.jitem').forEach(function (fig) {
       var v = fig.querySelector('.vfilm');
@@ -1011,7 +1186,7 @@ html.js:not(.ready) .fm-cap{opacity:0}
     }, 260);
   }
 
-  document.querySelectorAll('.frame').forEach(function (b) {
+  document.querySelectorAll('.frame, .dc').forEach(function (b) {
     b.addEventListener('click', function () { openLb(b); });
   });
   if (lbX) lbX.addEventListener('click', closeLb);
@@ -1051,7 +1226,6 @@ html.js:not(.ready) .fm-cap{opacity:0}
       if (!r || !r.items || !r.items.length) throw new Error('empty');
       box.innerHTML = head + rows(r.items);
     } catch (e) {
-      // 接口不通时用一组保守的公开价，避免落地页出现空表
       box.innerHTML = head + rows([
         { name: '体验包', total_points: 100, price_yuan: '10.00' },
         { name: '基础包', total_points: 550, price_yuan: '50.00' },
@@ -1072,7 +1246,7 @@ html.js:not(.ready) .fm-cap{opacity:0}
     });
   var links = Array.prototype.slice.call(document.querySelectorAll('.nlinks a[href^="#"]'));
   var FPS = 24, TOTAL = 60;
-  var raf = 0, ticking = false;
+  var ticking = false;
 
   function progressAt(top) {
     var max = document.documentElement.scrollHeight - window.innerHeight;
@@ -1132,50 +1306,35 @@ html.js:not(.ready) .fm-cap{opacity:0}
   };
   function goTo(el) {
     var navH = nav ? nav.getBoundingClientRect().height : 78;
-    var max = document.documentElement.scrollHeight - window.innerHeight;
-    var goal = Math.max(0, Math.min(max, el.getBoundingClientRect().top + window.scrollY - navH + 1));
-    var from = window.scrollY, dist = goal - from;
-    if (Math.abs(dist) < 4) return;
-    var dur = reduce ? 0 : Math.min(880, Math.max(360, Math.abs(dist) * 0.55));
-    var t0 = performance.now();
-    cancelAnimationFrame(raf);
-    if (!dur) { window.scrollTo(0, goal); return; }
+    var target = el.getBoundingClientRect().top + window.scrollY - navH - 8;
+    var start = window.scrollY, dist = target - start, t0 = null, DUR = 720;
+    if (Math.abs(dist) < 2) return;
+    if (reduce) { window.scrollTo(0, target); return; }
     (function step(now) {
-      var k = Math.min(1, (now - t0) / dur);
-      window.scrollTo(0, from + dist * easeInOutCubic(k));
-      if (k < 1) raf = requestAnimationFrame(step);
-    })(t0);
+      if (t0 === null) t0 = now;
+      var p = Math.min(1, (now - t0) / DUR);
+      window.scrollTo(0, start + dist * easeInOutCubic(p));
+      if (p < 1) requestAnimationFrame(step);
+    })(performance.now());
   }
 
-  document.addEventListener('click', function (e) {
-    var a = e.target.closest ? e.target.closest('a[href^="#"]') : null;
-    if (!a) return;
-    var id = a.getAttribute('href');
-    if (!id || id === '#') return;
-    var el = document.querySelector(id);
-    if (!el) return;
-    e.preventDefault();
-    goTo(el);
-    history.replaceState(null, '', id);
+  document.querySelectorAll('a[href^="#"]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      var id = a.getAttribute('href');
+      if (id.length < 2) return;
+      var el = document.querySelector(id);
+      if (!el) return;
+      e.preventDefault();
+      goTo(el);
+      history.replaceState(null, '', id);
+    });
   });
 
-  /* ---------------------------------------------------------------- 启动 */
-  function start() {
-    buildDots();
-    measure();
-    paint();
-    boot();
-  }
-  if (document.readyState === 'complete') start();
-  else window.addEventListener('load', start);
-
-  window.addEventListener('load', function () {
-    setTimeout(function () { measure(); paint(); }, 150);
-  });
-  // 图片/字体晚到时再校正一次
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(function () { measure(); paint(); });
-  }
+  buildDots();
+  measure();
+  paint();
+  boot();
+  clearTimeout(window.__seqFallback);
 })();
 </script>
 </body>

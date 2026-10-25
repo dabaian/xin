@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>桌面客户端 · Viora AI</title>
 <link rel="icon" href="/assets/favicon.png">
-<link rel="stylesheet" href="/assets/css/app.css?v=20261025">
+<link rel="stylesheet" href="/assets/css/app.css?v=20261028">
 <style>
 .hero-dl { padding: 54px 0 40px; }
 .dl-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; }
@@ -16,25 +16,27 @@
 .dl-meta { font-size: 12.5px; color: var(--muted); margin-top: 14px; }
 
 .win-card {
-  border-radius: 20px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--sh-3);
-  background: #fff;
+  border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--line); box-shadow: var(--sh-3);
+  background: var(--card);
 }
-.win-bar { height: 34px; background: #1A1D24; display: flex; align-items: center; gap: 6px; padding: 0 12px; }
-.win-bar i { width: 9px; height: 9px; border-radius: 50%; background: #4A4F5A; }
-.win-body { height: 260px; background: linear-gradient(160deg, #F7F8FA, #EFF1F5);
+.win-bar { height: 34px; background: #080B11; display: flex; align-items: center; gap: 6px; padding: 0 12px;
+  border-bottom: 1px solid var(--line-2); }
+.win-bar i { width: 8px; height: 8px; border-radius: 50%; background: #2B3648; }
+.win-body { height: 260px; background: linear-gradient(160deg, #101725, #0A0E17);
   display: grid; place-items: center; position: relative; }
-.win-side { position: absolute; left: 0; top: 0; bottom: 0; width: 84px; background: #fff;
-  border-right: 1px solid var(--line); padding: 14px 10px; display: flex; flex-direction: column; gap: 8px; }
-.win-side .l { height: 9px; border-radius: 5px; background: #EDEFF3; }
-.win-side .l.on { background: var(--brand-soft); }
+.win-side { position: absolute; left: 0; top: 0; bottom: 0; width: 84px; background: #0A0F18;
+  border-right: 1px solid var(--line-2); padding: 14px 10px; display: flex; flex-direction: column; gap: 8px; }
+.win-side .l { height: 8px; border-radius: 1px; background: #16202F; }
+.win-side .l.on { background: var(--brand-line); }
 .win-main { margin-left: 84px; padding: 20px; width: 100%; }
-.win-main .ph { height: 118px; border-radius: 12px; background: #E4E7EC; }
-.win-main .ln { height: 10px; border-radius: 5px; background: #E9ECF1; margin-top: 10px; }
+.win-main .ph { height: 118px; border-radius: var(--r-sm); background: #141C2B; border: 1px solid var(--line-2); }
+.win-main .ln { height: 9px; border-radius: 1px; background: #161E2E; margin-top: 10px; }
 
 .feat-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 16px; margin-top: 10px; }
-.fl { display: flex; gap: 12px; padding: 18px; background: #fff; border: 1px solid var(--line); border-radius: var(--r-lg); }
-.fl .n { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 10px; background: var(--brand-soft);
-  color: var(--brand); display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+.fl { display: flex; gap: 12px; padding: 18px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); }
+.fl .n { width: 34px; height: 34px; flex: 0 0 34px; border-radius: var(--r-sm); background: var(--brand-soft);
+  color: var(--brand-ink); display: grid; place-items: center; font-family: var(--mono); font-weight: 600; font-size: 12.5px;
+  box-shadow: inset 0 0 0 1px var(--brand-line); }
 .fl h3 { margin: 0 0 4px; font-size: 14.5px; }
 .fl p { margin: 0; font-size: 13px; color: var(--ink-3); line-height: 1.7; }
 .steps2 { counter-reset: s; }
@@ -43,7 +45,7 @@
 <body>
 <!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
 <script src="/config.js"></script>
-<script src="/assets/js/core.js?v=20261025"></script>
+<script src="/assets/js/core.js?v=20261028"></script>
 <div class="wrap" style="max-width:1180px;margin:0 auto;padding:0 24px">
   <header class="nav" style="position:static;border:none;background:transparent;height:78px">
     <div class="row" style="height:78px">

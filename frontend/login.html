@@ -5,37 +5,44 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>登录 · Viora AI</title>
 <link rel="icon" href="/assets/favicon.png">
-<link rel="stylesheet" href="/assets/css/app.css?v=20261026">
+<link rel="stylesheet" href="/assets/css/app.css?v=20261028">
 <style>
 .split { display: grid; grid-template-columns: 1.05fr 1fr; min-height: 100vh; }
 .side {
-  position: relative; overflow: hidden; padding: 44px; color: #fff;
-  background: linear-gradient(150deg, #14171D 0%, #1C2029 45%, #2A1C13 100%);
+  position: relative; overflow: hidden; padding: 44px; color: var(--ink);
+  background: #080B12;
   display: flex; flex-direction: column; justify-content: space-between;
 }
+/* 一层极细的等距竖线，像调色台上的刻度槽 */
 .side::before {
-  content: ''; position: absolute; inset: -40% -20% auto auto; width: 620px; height: 620px;
-  background: radial-gradient(circle, rgba(255,90,31,.42), transparent 62%);
+  content: ''; position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(90deg, rgba(91, 140, 255,.05) 0 1px, transparent 1px 64px),
+    radial-gradient(circle at 78% 8%, rgba(91, 140, 255,.20), transparent 58%),
+    radial-gradient(circle at 12% 96%, rgba(91, 140, 255,.09), transparent 52%);
 }
+/* 右侧一条黄铜发丝，把两块面板切开 */
 .side::after {
-  content: ''; position: absolute; left: -120px; bottom: -180px; width: 480px; height: 480px;
-  background: radial-gradient(circle, rgba(37,99,235,.28), transparent 64%);
+  content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(91, 140, 255,.34) 22%, rgba(91, 140, 255,.34) 78%, transparent);
 }
 .side > * { position: relative; z-index: 1; }
-.side .logo { display: flex; align-items: center; gap: 11px; font-weight: 700; font-size: 16px; }
-.side .logo .m { width: 34px; height: 34px; border-radius: 10px; object-fit: cover;
-  box-shadow: 0 4px 14px rgba(120,90,255,.45); }
-.side h1 { font-size: 40px; line-height: 1.22; letter-spacing: -.025em; margin: 0 0 14px; font-weight: 700; }
-.side h1 em { font-style: normal; color: #FF8A5B; }
-.side p { color: rgba(255,255,255,.62); font-size: 14px; max-width: 380px; line-height: 1.75; }
-.side .pts { display: grid; gap: 12px; margin-top: 26px; }
-.side .pts div { display: flex; gap: 10px; font-size: 13.5px; color: rgba(255,255,255,.78); }
-.side .pts i { width: 18px; height: 18px; border-radius: 50%; background: rgba(255,90,31,.22);
-  color: #FF8A5B; display: grid; place-items: center; font-size: 10px; font-style: normal;
-  font-weight: 800; flex: 0 0 18px; margin-top: 2px; }
-.side .foot { color: rgba(255,255,255,.35); font-size: 12px; }
+.side .logo { display: flex; align-items: center; gap: 11px; font-weight: 600; font-size: 15.5px; }
+.side .logo .m { width: 32px; height: 32px; border-radius: var(--r-sm); object-fit: cover;
+  box-shadow: 0 0 0 1px rgba(91, 140, 255,.24); }
+.side h1 { font-size: clamp(30px, 3.4vw, 41px); line-height: 1.2; letter-spacing: -.028em;
+  margin: 0 0 14px; font-weight: 600; }
+.side h1 em { font-style: normal; color: var(--brand); }
+.side p { color: var(--ink-3); font-size: 13.5px; max-width: 372px; line-height: 1.8; }
+.side .pts { display: grid; gap: 13px; margin-top: 28px; }
+.side .pts div { display: flex; gap: 10px; font-size: 13px; color: var(--ink-2); }
+.side .pts i { width: 17px; height: 17px; border-radius: 50%; background: transparent;
+  color: var(--brand); display: grid; place-items: center; font-size: 9.5px; font-style: normal;
+  font-weight: 600; flex: 0 0 17px; margin-top: 2px;
+  box-shadow: inset 0 0 0 1px rgba(91, 140, 255,.4); }
+.side .foot { color: #5C6675; font-size: 11.5px; letter-spacing: .02em; }
 
-.form-side { display: grid; place-items: center; padding: 40px 24px; background: #fff; }
+.form-side { display: grid; place-items: center; padding: 40px 24px; background: var(--bg); }
 .form-box { width: 100%; max-width: 372px; }
 #mobile { letter-spacing: .04em; }
 .hint { font-size: 11.5px; color: var(--muted); margin-top: 5px; }
@@ -96,7 +103,7 @@
 </div>
 <!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
 <script src="/config.js"></script>
-<script src="/assets/js/core.js?v=20261026"></script>
+<script src="/assets/js/core.js?v=20261028"></script>
 <script>
 (function () {
   const qs = new URLSearchParams(location.search);

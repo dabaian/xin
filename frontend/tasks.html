@@ -5,18 +5,18 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>任务中心 · Viora AI</title>
 <link rel="icon" href="/assets/favicon.png">
-<link rel="stylesheet" href="/assets/css/app.css?v=20261025">
+<link rel="stylesheet" href="/assets/css/app.css?v=20261028">
 <style>
 .filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
-.f { padding: 6px 13px; border-radius: 20px; border: 1px solid var(--line); background: #fff;
-  font-size: 13px; font-weight: 500; color: var(--ink-3); cursor: pointer; transition: all .14s; }
-.f:hover { border-color: #DADFE8; color: var(--ink); }
-.f.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.f { padding: 6px 13px; border-radius: 2px; border: 1px solid var(--line); background: var(--card);
+  font-size: 12.5px; font-weight: 500; color: var(--ink-3); cursor: pointer; transition: all .14s; }
+.f:hover { border-color: #2F3A4C; color: var(--ink-2); }
+.f.on { background: var(--brand); border-color: var(--brand); color: var(--on-brand); font-weight: 600; }
 .grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
-.tcard { background: #fff; border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden;
-  display: flex; flex-direction: column; transition: box-shadow .16s, transform .16s; }
-.tcard:hover { box-shadow: var(--sh-2); transform: translateY(-1px); }
-.tcard .pv { aspect-ratio: 16/10; background: #EEF0F4; position: relative; cursor: pointer; overflow: hidden; }
+.tcard { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden;
+  display: flex; flex-direction: column; transition: border-color .16s, transform .16s; }
+.tcard:hover { border-color: var(--brand-line); transform: translateY(-2px); }
+.tcard .pv { aspect-ratio: 16/10; background: #121A29; position: relative; cursor: pointer; overflow: hidden; }
 .tcard .pv video, .tcard .pv img { width: 100%; height: 100%; object-fit: cover; }
 .tcard .pv .ph { display: grid; place-items: center; height: 100%; color: var(--muted); }
 .tcard .pv .ph svg { width: 46px; height: 46px; opacity: .28; }
@@ -32,7 +32,7 @@
 <body>
 <!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
 <script src="/config.js"></script>
-<script src="/assets/js/core.js?v=20261025"></script>
+<script src="/assets/js/core.js?v=20261028"></script>
 <script>
 (async function () {
   const user = await requireUser();
