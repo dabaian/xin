@@ -111,9 +111,15 @@ def warnings() -> list[str]:
         return out
 
     if not mail_ready() and not CFG.email_code_required:
-        out.append("邮箱验证码已关闭（EMAIL_CODE_REQUIRED=0），注册只校验图形码")
-    if CFG.captcha_enabled is False:
-        out.append("图形验证码已关闭（CAPTCHA_ENABLED=0），注册接口可能被脚本刷")
+        out.append("邮箱验证码已关闭（EMAIL_CODE_REQUIRED=0），注册只校验人机验证")
+    from . import captcha as captcha_mod
+
+    if captcha_mod.provider() == "off":
+        out.append("人机验证已关闭（CAPTCHA_PROVIDER=off，或极验未配置且关了图形码），"
+                   "注册接口可能被脚本刷")
+    elif captcha_mod.provider() == "image":
+        out.append("当前用自绘图形验证码（极验未配置）——能挡住低级脚本，"
+                   "挡不住打码平台。建议配 GEETEST_ID / GEETEST_KEY")
     if not CFG.site_base.startswith("https://"):
         out.append("站点地址不是 https（%s）：Cookie 不会被标记 Secure，"
                    "支付宝回调也要求 https" % CFG.site_base)

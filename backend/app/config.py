@@ -215,9 +215,20 @@ class Settings:
     admin_user: str = field(default_factory=lambda: _env("ADMIN_USERNAME", "admin"))
     admin_password: str = field(default_factory=lambda: _env("ADMIN_PASSWORD", ""))
 
-    # ---------- 注册验证码 ----------
+    # ---------- 人机验证（极验 GeeTest v4） ----------
+    # 配了 GEETEST_ID + GEETEST_KEY 就走极验；没配则回落到自绘图形验证码。
+    geetest_id: str = field(default_factory=lambda: _env("GEETEST_ID", ""))
+    geetest_key: str = field(default_factory=lambda: _env("GEETEST_KEY", ""))
+    geetest_api: str = field(default_factory=lambda: _env(
+        "GEETEST_API", "https://gcaptcha4.geetest.com"))
+    # 极验服务不可达时是否放行（1=放行，牺牲安全性保可用性；默认 0 拒绝）
+    geetest_fail_open: bool = field(default_factory=lambda: _bool("GEETEST_FAIL_OPEN", False))
+
+    # ---------- 注册验证码（旧的自绘图形码，作为极验未配置时的兜底） ----------
     captcha_enabled: bool = field(default_factory=lambda: _bool("CAPTCHA_ENABLED", True))
     captcha_ttl: int = field(default_factory=lambda: _int("CAPTCHA_TTL", 300))
+    # auto=配了极验就用极验 / geetest / image / off
+    captcha_provider: str = field(default_factory=lambda: _env("CAPTCHA_PROVIDER", "auto"))
 
     # ---------- 邮件（注册 / 验证码登录） ----------
     smtp_host: str = field(default_factory=lambda: _env("SMTP_HOST", ""))

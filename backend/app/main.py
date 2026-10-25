@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import guard
+from . import captcha, guard
 from .config import CFG
 from .db import init_db
 from .routers import admin, assets, auth, desktop, payment, tasks as task_router, wallet
@@ -118,7 +118,8 @@ def runtime_config():
         "time": time.strftime("%Y-%m-%d %H:%M:%S"),
         "pay": {"active": active, "mock": gateway.mock_enabled()},
         "features": {
-            "captcha": bool(CFG.captcha_enabled),
+            "captcha": captcha.provider() != "off",
+            "captcha_provider": captcha.provider(),
             "email_code_required": bool(CFG.email_code_required),
             "register": bool(CFG.allow_register),
         },
@@ -196,6 +197,13 @@ def _startup():
     log.info("%s 已启动 · %s:%s · 数据目录 %s", CFG.app_name, CFG.host, CFG.port,
              CFG.data_dir)
     log.info("运行状态：%s", guard.banner())
+    _cap = captcha.provider()
+    if _cap == "geetest":
+        log.info("人机验证：极验 v4（captcha_id %s…）", (CFG.geetest_id or "")[:8])
+    elif _cap == "image":
+        log.warning("人机验证：内置图形码（未配置 GEETEST_ID / GEETEST_KEY）")
+    else:
+        log.warning("人机验证已关闭，注册接口可能被脚本刷")
 
     if not CFG.muse_key:
         log.warning("MUSE_KEY 未配置，生成任务会失败（请在 .env 填写号池密钥）")

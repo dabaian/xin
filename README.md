@@ -192,34 +192,45 @@ curl -b cookie.txt http://127.0.0.1:8080/api/payments/selfcheck
 
 ## 8. 注册与登录验证
 
-注册要过**图形验证码 + 邮箱验证码**，登录支持**密码登录**和**邮箱验证码登录**两套。
+注册要过**人机验证 + 邮箱验证码**，登录支持**密码登录**和**邮箱验证码登录**两套。
 
-### 8.1 图形验证码
+### 8.1 人机验证（极验 GeeTest v4）
 
-注册页带**图形验证码**，挡脚本批量注册：
+默认走**极验滑块**，挡脚本批量注册和刷邮箱配额：
 
-- 4 位字符，去掉 `0/O`、`1/l` 这类肉眼易混的字符；带干扰线、噪点、随机旋转
-- 答案只在服务端存 SHA-256 哈希，库被读走也还原不出来
-- **一次性**：答对答错都作废，每次尝试都要重新取图
-- 默认 5 分钟过期，按 IP 限速 40 张 / 5 分钟
-- 图片是 132×46 的 PNG，内联成 data URI 直接返回，不落盘
+- 前端从 `https://static.geetest.com/v4/gt4.js` 加载组件，用户拖动滑块完成验证
+- 前端只拿到 4 个参数（`lot_number` / `captcha_output` / `pass_token` / `gen_time`），
+  **验证结论一律由服务端二次校验决定**，前端回调不算数
+- 服务端用 `GEETEST_KEY` 对 `lot_number` 做 HMAC-SHA256 得到 `sign_token`，
+  再连同 4 个参数 POST 到 `https://gcaptcha4.geetest.com/validate`，
+  只有返回 `status=success` 且 `result=success` 才放行
+- `GEETEST_KEY`（秘钥）只在服务端参与签名，**任何接口都不会把它下发给前端**；
+  网页源码里只有 `GEETEST_ID`（验证 ID，本来就是公开的）
 
 开关在 `.env`：
 
 ```bash
-CAPTCHA_ENABLED=1     # 设 0 关掉（本地调试用，线上别关）
-CAPTCHA_TTL=300       # 有效期（秒）
+GEETEST_ID=          # 极验后台的验证 ID（公开信息）
+GEETEST_KEY=         # 极验后台的验证秘钥（只留在服务端）
+CAPTCHA_PROVIDER=auto   # auto=配了极验用极验 / geetest / image / off
 ```
 
-关掉后注册页会自动隐藏这一栏，后端也不再校验。依赖 `pillow`（已在
-`requirements.txt` 里），服务器上没装字体会自动降级到 Pillow 内置字体，不会白屏。
+`GEETEST_FAIL_OPEN=0`（默认）表示极验服务器不可达时**拒绝**注册而不是放行；
+如果你的业务更怕「验证服务挂了没人能注册」，可以改 1，但要清楚这是拿安全性换可用性。
+
+**兜底**：没配极验时自动回落到内置的自绘图形码（4 位字符、SHA-256 存哈希、
+一次性、5 分钟过期、按 IP 限速），不需要改代码。也可以用 `CAPTCHA_PROVIDER=image`
+强制走图形码（内网环境访问不到极验时有用）。
+
+排查一句话：`curl /api/auth/captcha/config`，返回 `provider: "geetest"` 即表示极验生效；
+返回 `image` 说明 ID/KEY 没读到。
 
 ### 8.2 邮箱验证码
 
 | 场景 | 流程 |
 |---|---|
-| 注册 | 填邮箱 → 过图形码 → 收 6 位邮箱码 → 带码注册 |
-| 登录 | 切到「验证码登录」→ 填邮箱 → 过图形码 → 收码 → 登录 |
+| 注册 | 填邮箱 → 过极验 → 收 6 位邮箱码 → 带码注册 |
+| 登录 | 切到「验证码登录」→ 填邮箱 → 过极验 → 收码 → 登录 |
 
 - 6 位数字，只存哈希，有效期 10 分钟（`EMAIL_CODE_TTL`）
 - 同一邮箱 **60 秒冷却**、**每小时最多 5 封**，单张码最多试 **5 次**
@@ -236,7 +247,7 @@ SMTP_USER=你的邮箱@qq.com
 SMTP_PASS=授权码           # 不是登录密码
 SMTP_FROM=                 # 留空用 SMTP_USER
 SMTP_SSL=1                 # 465 走 SSL；587 则 SSL=0 STARTTLS=1
-EMAIL_CODE_REQUIRED=1      # 设 0 则注册只校验图形码
+EMAIL_CODE_REQUIRED=1      # 设 0 则注册只校验人机验证
 MAIL_ECHO=0                # 没配 SMTP 时把验证码回显到页面，线上必须 0
 ```
 
@@ -245,7 +256,8 @@ MAIL_ECHO=0                # 没配 SMTP 时把验证码回显到页面，线上
 （接口返回 `echo_code`），前端自动填入并弹提示。`APP_ENV=prod` 时打开 `MAIL_ECHO`
 会被启动守卫直接拒绝启动，不存在「线上误开」这种事故。
 
-接口一览：`GET /api/auth/captcha`、`GET /api/auth/mail/config`、`POST /api/auth/email-code`、
+接口一览：`GET /api/auth/captcha/config`（人机验证方式）、`GET /api/auth/captcha`（图形码兜底）、
+`GET /api/auth/mail/config`、`POST /api/auth/email-code`、
 `POST /api/auth/register`、`POST /api/auth/login`（`mode=password|code`）。
 
 要换成短信验证码的话，把 `emailcode.issue/verify` 换成短信服务商的接口即可，

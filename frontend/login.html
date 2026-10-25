@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>登录 · Viora AI</title>
 <link rel="icon" href="/assets/favicon.png">
-<link rel="stylesheet" href="/assets/css/app.css?v=20261024b">
+<link rel="stylesheet" href="/assets/css/app.css?v=20261025">
 <style>
 .split { display: grid; grid-template-columns: 1.05fr 1fr; min-height: 100vh; }
 .side {
@@ -91,13 +91,18 @@
         </div>
 
         <div id="codeWrap" style="display:none">
-          <div class="field">
-            <label class="label">图形验证码</label>
-            <div class="cap-row">
+          <div class="field" id="capField">
+            <label class="label">人机验证</label>
+            <div class="gt-box" id="gtBox" hidden>
+              <button class="btn btn-block" id="gtBtn" type="button">点击完成安全验证</button>
+              <div class="gt-done" id="gtDone" hidden><span class="gt-tick">✓</span>已完成验证</div>
+            </div>
+            <div class="cap-row" id="imgRow" hidden>
               <input class="input" id="capCode" type="text" maxlength="4" autocomplete="off"
                      placeholder="右侧 4 位">
               <img class="cap-img" id="capImg" alt="验证码" title="点击刷新">
             </div>
+            <div class="hint" id="capTip">点按钮完成安全验证</div>
           </div>
           <div class="field">
             <label class="label">邮箱验证码</label>
@@ -125,27 +130,26 @@
 </div>
 <!-- 后端地址等运行时配置由服务端下发；前端独立部署时放一个同内容的 config.js 即可 -->
 <script src="/config.js"></script>
-<script src="/assets/js/core.js?v=20261024b"></script>
+<script src="/assets/js/core.js?v=20261025"></script>
 <script>
 (function () {
   const next = new URLSearchParams(location.search).get('next') || '/studio';
   let mode = 'password';
-  let capOn = true, capId = '', coolTimer = null;
+  let coolTimer = null;
 
   // 已登录直接跳走
   get('/api/auth/me').then(() => { location.href = next; }).catch(() => {});
 
-  /* ---------------- 图形验证码 ---------------- */
-  async function loadCaptcha() {
+  /* ---------------- 人机验证（极验 v4，未配置时退回图形码） ---------------- */
+  let capOn = false, capImgOn = false, capId = '';
+
+  async function loadImageCaptcha() {
     const img = $('#capImg');
+    if (!img) return;
     img.classList.add('loading');
     try {
       const r = await get('/api/auth/captcha');
-      if (r && r.enabled === false) {
-        capOn = false;
-        $('#capCode').parentElement.style.display = 'none';
-        return;
-      }
+      if (!r || r.enabled === false) { $('#imgRow').hidden = true; return; }
       capId = r.id;
       img.src = r.image;
       $('#capCode').value = '';
@@ -155,7 +159,69 @@
       img.classList.remove('loading');
     }
   }
-  $('#capImg').addEventListener('click', loadCaptcha);
+
+  let capReady = null;
+  async function initCaptcha() {
+    if (capReady) return capReady;
+    capReady = (async () => {
+      const mode = await Gt4.init();
+      if (mode === 'off') { capOn = false; $('#capField').style.display = 'none'; return; }
+      capOn = true;
+      if (mode === 'image') {
+        capImgOn = true;
+        $('#imgRow').hidden = false;
+        $('#capTip').textContent = '看不清？点一下图片换一张';
+        $('#capImg').addEventListener('click', loadImageCaptcha);
+        loadImageCaptcha();
+      } else if (mode === 'geetest-error') {
+        $('#gtBox').hidden = false;
+        $('#gtBtn').disabled = true;
+        $('#gtBtn').textContent = '安全验证加载失败';
+        $('#capTip').innerHTML = '<span style="color:var(--bad)">安全验证组件加载失败，' +
+          '请关闭广告拦截插件后刷新页面</span>';
+      } else {
+        $('#gtBox').hidden = false;
+        $('#capTip').textContent = '点击按钮，按提示完成滑块验证';
+      }
+    })();
+    return capReady;
+  }
+
+  let capCache = null, capCacheAt = 0;
+
+  function flashDone() {
+    const btn = $('#gtBtn'), done = $('#gtDone');
+    btn.hidden = true; done.hidden = false;
+    setTimeout(() => { btn.hidden = false; done.hidden = true; }, 1600);
+  }
+
+  async function runGt() {
+    const p = await Gt4.run();
+    if (!p) {
+      if (Gt4.mode === 'geetest-error') toast('安全验证组件加载失败，请刷新页面重试', 'bad');
+      return null;
+    }
+    capCache = Gt4.payload(p);
+    capCacheAt = Date.now();
+    flashDone();
+    return capCache;
+  }
+
+  async function grabCaptcha() {
+    if (!capOn) return {};
+    if (capImgOn) {
+      const code = $('#capCode').value.trim();
+      if (!code) { toast('请先填写右侧的图形验证码', 'warn'); $('#capCode').focus(); return null; }
+      return { captcha_id: capId, captcha_code: code };
+    }
+    if (capCache && Date.now() - capCacheAt < 120000) {
+      const c = capCache; capCache = null;
+      return c;
+    }
+    return await runGt();
+  }
+
+  $('#gtBtn').addEventListener('click', () => { if (!capImgOn) runGt(); });
 
   /* ---------------- 模式切换 ---------------- */
   function applyMode() {
@@ -164,7 +230,7 @@
     $('#codeWrap').style.display = isCode ? '' : 'none';
     $('#submit').textContent = isCode ? '验证码登录' : '登录';
     $$('#segMode button').forEach((b) => b.classList.toggle('on', b.dataset.v === mode));
-    if (isCode && !$('#capImg').src) loadCaptcha();
+    if (isCode) initCaptcha();
   }
   $('#segMode').addEventListener('click', (e) => {
     const b = e.target.closest('button');
@@ -196,17 +262,16 @@
   $('#sendCode').addEventListener('click', async () => {
     const email = $('#account').value.trim();
     if (!email) { toast('请先填写邮箱', 'warn'); $('#account').focus(); return; }
-    if (capOn && !$('#capCode').value.trim()) {
-      toast('请先填写右侧的图形验证码', 'warn'); $('#capCode').focus(); return;
-    }
+    await initCaptcha();
+    const cap = await grabCaptcha();
+    if (cap === null) return;
     const btn = $('#sendCode');
     btn.disabled = true; btn.textContent = '发送中…';
     try {
       const r = await post('/api/auth/email-code', {
         email: email,
         purpose: 'login',
-        captcha_id: capId,
-        captcha_code: $('#capCode').value.trim(),
+        ...cap,
       });
       startCooldown(r.cooldown || 60);
       if (r.echo) {
@@ -221,7 +286,7 @@
     } catch (err) {
       btn.disabled = false; btn.textContent = '获取验证码';
       toast(err.message || '发送失败', 'bad');
-      if (capOn) loadCaptcha();
+      if (capImgOn) loadImageCaptcha();
     }
   });
 
@@ -249,7 +314,7 @@
     } catch (err) {
       btn.disabled = false; btn.textContent = isCode ? '验证码登录' : '登录';
       toast(err.message || '登录失败', 'bad');
-      if (isCode) { if (capOn) loadCaptcha(); $('#mailCode').select(); }
+      if (isCode) { if (capImgOn) loadImageCaptcha(); $('#mailCode').select(); }
       else $('#password').select();
     }
   });
@@ -260,7 +325,7 @@
     applyMode();
   }
   applyMode();
-  loadCaptcha();
+  initCaptcha();
 
   const acc = new URLSearchParams(location.search).get('account');
   if (acc) { $('#account').value = acc; $('#password').focus(); } else $('#account').focus();

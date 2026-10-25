@@ -306,3 +306,25 @@ img, video { display: block; max-width: 100%; }
   .content { padding: 16px; }
   .h1 { font-size: 26px; }
 }
+
+/* ---------------------------------------------------------------- 人机验证（极验 v4） */
+.gt-box { display: block; }
+.gt-box .btn { width: 100%; }
+.gt-done {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 14px; border: 1px solid #A9E2C6; background: var(--ok-soft);
+  border-radius: var(--r); color: #0B7A4B; font-size: 13.5px; font-weight: 600;
+}
+.gt-tick {
+  width: 18px; height: 18px; border-radius: 50%; background: var(--ok); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; line-height: 1; flex: 0 0 auto;
+}
+
+/* hidden 属性要被 display 规则压住，否则 flex/grid 元素加 hidden 不生效 */
+[hidden] { display: none !important; }
+.gt-box .btn {
+  background: var(--brand-soft); border: 1px solid var(--brand-line);
+  color: var(--brand-ink); font-weight: 600;
+}
+.gt-box .btn:hover:not(:disabled) { background: #FFE6DA; border-color: var(--brand); }

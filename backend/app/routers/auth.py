@@ -24,6 +24,12 @@ class RegisterIn(BaseModel):
     username: str = Field(default="", max_length=32)
     invite: str = ""
     email_code: str = ""
+    # 极验 v4 四个参数（走极验时用）
+    lot_number: str = ""
+    captcha_output: str = ""
+    pass_token: str = ""
+    gen_time: str = ""
+    # 自绘图形码（极验未配置时的兜底）
     captcha_id: str = ""
     captcha_code: str = ""
 
@@ -46,6 +52,10 @@ class LoginIn(BaseModel):
 class EmailCodeIn(BaseModel):
     email: str = Field(min_length=5, max_length=120)
     purpose: str = "register"    # register / login
+    lot_number: str = ""
+    captcha_output: str = ""
+    pass_token: str = ""
+    gen_time: str = ""
     captcha_id: str = ""
     captcha_code: str = ""
 
@@ -60,7 +70,10 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 @router.get("/captcha")
 def get_captcha(request: Request, conn=Depends(db.get_db)):
-    """注册用图形验证码：答案只在服务端存哈希，默认 5 分钟失效、用一次作废。"""
+    """自绘图形验证码（仅在 provider=image 时有效）。
+
+    走极验时这里返回 enabled=False，前端据此不渲染图片那一栏。
+    """
     ip = client_ip(request) or "unknown"
     if not captcha_limiter.hit(ip):
         return {"ok": False, "error": "验证码请求太频繁，请稍后再试"}
@@ -69,7 +82,20 @@ def get_captcha(request: Request, conn=Depends(db.get_db)):
 
 @router.get("/captcha/config")
 def captcha_config():
-    return {"ok": True, "enabled": captcha.enabled(), "ttl": int(CFG.captcha_ttl)}
+    """前端启动时读一次，决定用人机验证的哪种形态。
+
+    captcha_id 是极验的「验证 ID」，本来就暴露在网页源码里，不是密钥。
+    真正的 GEETEST_KEY（秘钥）只在服务端参与签名，任何接口都不会返回它。
+    """
+    mode = captcha.provider()
+    return {
+        "ok": True,
+        "enabled": mode != "off",
+        "provider": mode,                 # geetest / image / off
+        "captcha_id": CFG.geetest_id if mode == "geetest" else "",
+        "product": "bind",
+        "ttl": int(CFG.captcha_ttl),
+    }
 
 
 @router.get("/mail/config")
@@ -98,8 +124,8 @@ def send_email_code(data: EmailCodeIn, request: Request, conn=Depends(db.get_db)
     if not email_limiter.hit(ip):
         raise HTTPException(429, "获取验证码太频繁，请稍后再试")
 
-    # 先过图形验证码，挡掉脚本刷邮件配额
-    ok, why = captcha.verify(conn, data.captcha_id, data.captcha_code)
+    # 先过人机验证（极验 / 图形码），挡掉脚本刷邮件配额
+    ok, why = captcha.verify_any(conn, data, ip=ip)
     if not ok:
         raise HTTPException(400, why)
 
@@ -188,14 +214,14 @@ def register(data: RegisterIn, request: Request, response: Response,
     if conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone():
         raise HTTPException(409, "该邮箱已注册，请直接登录")
 
-    # 验证顺序：邮箱验证码（注册必填）→ 关掉邮件时退回图形验证码
+    # 验证顺序：邮箱验证码（注册必填）→ 关掉邮件时退回人机验证
     if CFG.email_code_required:
         passed, why = emailcode.verify(conn, email, "register", data.email_code)
         if not passed:
             raise HTTPException(400, why)
     else:
-        # 图形验证码：放在格式校验之后，避免用户因为「邮箱写错」白废一张码
-        passed, why = captcha.verify(conn, data.captcha_id, data.captcha_code)
+        # 人机验证：放在格式校验之后，避免用户因为「邮箱写错」白做一次验证
+        passed, why = captcha.verify_any(conn, data, ip=ip or "")
         if not passed:
             raise HTTPException(400, why)
 

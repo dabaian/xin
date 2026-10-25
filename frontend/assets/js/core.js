@@ -331,3 +331,142 @@ function poller(fn, ms) {
   timer = setTimeout(run, ms);
   return { stop() { stopped = true; clearTimeout(timer); } };
 }
+
+/* ---------------------------------------------------------------- 人机验证
+ * 统一封装：极验 GeeTest v4（首选）与自绘图形码（兜底）。
+ *
+ *   await Gt4.init()           读 /api/auth/captcha/config，决定用哪种形态
+ *   Gt4.mode                   'geetest' | 'image' | 'off'
+ *   await Gt4.run()            触发一次验证
+ *        极验 → resolve {lot_number, captcha_output, pass_token, gen_time}
+ *        图形 → resolve {image: true}（由调用方自己取图、读输入框）
+ *        关闭 → resolve {}
+ *        用户关弹窗 / 加载失败 → resolve null
+ *
+ * 注意：极验的一次验证参数只能用一次，注册这类「发码 + 提交」两处都要验证的场景，
+ * 必须在每次动作前重新 run()。
+ */
+const Gt4 = (() => {
+  const SCRIPT = 'https://static.geetest.com/v4/gt4.js';
+  let mode = 'off';
+  let captchaId = '';
+  let inst = null;
+  let loading = null;       // 正在加载脚本的 Promise，避免并发重复插 script
+  let pending = null;       // 当前这一轮 showCaptcha 的 resolve
+
+  function scriptReady() {
+    return typeof window.initGeetest4 === 'function';
+  }
+
+  async function loadScript() {
+    if (scriptReady()) return true;
+    if (!loading) {
+      loading = new Promise((resolve) => {
+        const s = document.createElement('script');
+        s.src = SCRIPT;
+        s.async = true;
+        s.onload = () => resolve(scriptReady());
+        s.onerror = () => resolve(false);
+        document.head.appendChild(s);
+      });
+    }
+    return loading;
+  }
+
+  function firstValue(v) {
+    // pass_token / captcha_output 偶尔是数组形式，极验要求原样回传字符串
+    return Array.isArray(v) ? v[0] : (v == null ? '' : String(v));
+  }
+
+  async function build() {
+    if (inst) return inst;
+    if (!(await loadScript())) return null;
+    inst = await new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(null), 8000);
+      try {
+        window.initGeetest4({ captchaId: captchaId, product: 'bind', language: 'zho' }, (cap) => {
+          clearTimeout(timer);
+          resolve(cap || null);
+        });
+      } catch (e) {
+        clearTimeout(timer);
+        resolve(null);
+      }
+    });
+    if (!inst) return null;
+
+    // 事件只绑一次，靠 pending 决定这次回调喂给谁
+    const settle = (fn) => {
+      const p = pending;
+      pending = null;
+      if (p) p(fn);
+    };
+    // v4 不同小版本回调形态不一致：有的给 result，有的只给 captchaObj，
+    // 统一以 getValidate() 为准，取不到再退回回调入参
+    const readValidate = (arg) => {
+      let v = null;
+      try { v = (inst.getValidate && inst.getValidate()) || null; } catch { v = null; }
+      if (!v && arg && arg.lot_number) v = arg;
+      return v || {};
+    };
+    inst.onSuccess((arg) => {
+      const v = readValidate(arg);
+      settle({
+        lot_number: firstValue(v.lot_number),
+        captcha_output: firstValue(v.captcha_output),
+        pass_token: firstValue(v.pass_token),
+        gen_time: firstValue(v.gen_time),
+      });
+    });
+    if (typeof inst.onClose === 'function') inst.onClose(() => settle(null));
+    if (typeof inst.onError === 'function') inst.onError(() => settle(null));
+    return inst;
+  }
+
+  return {
+    get mode() { return mode; },
+    get captchaId() { return captchaId; },
+
+    async init() {
+      try {
+        const r = await api('/api/auth/captcha/config');
+        mode = r.provider || 'off';
+        captchaId = r.captcha_id || '';
+      } catch {
+        mode = 'off';
+      }
+      // 极验脚本拿不到（广告拦截 / 内网）时降级成提示，不静默放行
+      if (mode === 'geetest') {
+        const ok = await loadScript();
+        if (!ok) mode = 'geetest-error';
+      }
+      return mode;
+    },
+
+    async run() {
+      if (mode === 'off') return {};
+      if (mode === 'image') return { image: true };
+      if (mode === 'geetest-error') return null;
+
+      const cap = await build();
+      if (!cap) { mode = 'geetest-error'; return null; }
+
+      return new Promise((resolve) => {
+        const timer = setTimeout(() => { pending = null; resolve(null); }, 180000);
+        pending = (val) => { clearTimeout(timer); resolve(val); };
+        try { cap.showCaptcha(); } catch { clearTimeout(timer); pending = null; resolve(null); }
+      });
+    },
+
+    /* 把 run() 的结果摊进请求体，图形码模式返回空对象 */
+    payload(p) {
+      if (!p || p.image) return {};
+      return {
+        lot_number: p.lot_number || '',
+        captcha_output: p.captcha_output || '',
+        pass_token: p.pass_token || '',
+        gen_time: p.gen_time || '',
+      };
+    },
+  };
+})();

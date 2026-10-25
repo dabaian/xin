@@ -91,13 +91,65 @@ def _render(code: str) -> bytes:
 
 
 def enabled() -> bool:
-    return bool(CFG.captcha_enabled)
+    """是否启用任何形式的人机验证。"""
+    return provider() != "off"
+
+
+def provider() -> str:
+    """当前生效的验证方式：geetest / image / off。
+
+    CAPTCHA_PROVIDER 四种取值：
+      auto      配了极验就用极验，否则用自绘图形码（默认）
+      geetest   强制极验；没配 ID/KEY 时视为关闭，避免半配状态放行
+      image     强制自绘图形码（内网/无法访问极验时用）
+      off       全部关闭（不建议线上用）
+    """
+    from . import geetest
+
+    want = (CFG.captcha_provider or "auto").strip().lower()
+    if want in ("off", "none", "0", "false", "disabled"):
+        return "off"
+    if want == "geetest":
+        return "geetest" if geetest.configured() else "off"
+    if want == "image":
+        return "image" if CFG.captcha_enabled else "off"
+    # auto
+    if geetest.configured():
+        return "geetest"
+    return "image" if CFG.captcha_enabled else "off"
+
+
+def verify_any(conn, data, ip: str = "") -> tuple[bool, str]:
+    """按当前 provider 校验一次请求，返回 (是否通过, 失败原因)。
+
+    data 可以是任意带这些属性的对象（pydantic 模型 / dict 都行）：
+      geetest: lot_number / captcha_output / pass_token / gen_time
+      image:   captcha_id / captcha_code
+    """
+    from . import geetest
+
+    def pick(name: str) -> str:
+        if isinstance(data, dict):
+            return str(data.get(name) or "")
+        return str(getattr(data, name, "") or "")
+
+    mode = provider()
+    if mode == "off":
+        return True, ""
+    if mode == "geetest":
+        return geetest.verify(pick("lot_number"), pick("captcha_output"),
+                              pick("pass_token"), pick("gen_time"), ip=ip)
+    return verify(conn, pick("captcha_id"), pick("captcha_code"))
 
 
 def issue(conn) -> dict:
-    """签发一张验证码，返回可直接塞进 <img src> 的 data URI。"""
-    if not enabled():
-        return {"ok": True, "enabled": False}
+    """签发一张图形验证码，返回可直接塞进 <img src> 的 data URI。
+
+    只有当前 provider 是 image 时才发图；走极验时返回 enabled=False，
+    前端据此不渲染图形码那一栏。
+    """
+    if provider() != "image":
+        return {"ok": True, "enabled": False, "provider": provider()}
     code = "".join(random.choice(_ALPHABET) for _ in range(_LEN))
     cid = uuid.uuid4().hex
     # 顺手清掉过期记录，避免表无限增长（只在少量概率下做，省 IO）
@@ -117,8 +169,8 @@ def issue(conn) -> dict:
 
 
 def verify(conn, cid: str, code: str) -> tuple[bool, str]:
-    """校验并作废。返回 (是否通过, 失败原因)。"""
-    if not enabled():
+    """校验图形验证码并作废。返回 (是否通过, 失败原因)。"""
+    if provider() != "image":
         return True, ""
     cid = (cid or "").strip()
     code = (code or "").strip().upper()
